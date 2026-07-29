@@ -60,3 +60,6 @@ scratch/
 *.sql.gz
 /data/
 /backups/
+
+# Screenshots captured during verification
+/shots/

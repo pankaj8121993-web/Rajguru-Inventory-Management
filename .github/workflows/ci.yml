@@ -13,10 +13,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/rajguru_test
+  DEV_ACTOR_CODE: EMP001
+
 jobs:
   # ---------------------------------------------------------------------------
-  # Governance — runs today. Verifies the documentation and skill structure that
-  # the whole project depends on.
+  # Governance — the documentation and skill structure the project depends on.
   # ---------------------------------------------------------------------------
   governance:
     name: Governance structure
@@ -32,7 +35,7 @@ jobs:
 
       - name: Guard the inventory invariants
         run: |
-          # These greps protect rules that must never be weakened by an edit.
+          # Protects rules that must never be weakened by an edit.
           # See docs/01-domain/INVENTORY_INVARIANTS.md
           fail=0
 
@@ -51,7 +54,7 @@ jobs:
           exit $fail
 
   # ---------------------------------------------------------------------------
-  # Secret scanning — runs today.
+  # Secret scanning.
   # ---------------------------------------------------------------------------
   secrets:
     name: Secret scan
@@ -67,74 +70,92 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # ---------------------------------------------------------------------------
-  # Application gates — activate from Phase 3, when application code exists.
-  # Each step is skipped while its config file is absent, so CI stays green and
-  # honest rather than failing on work that has not started.
+  # Static checks and unit tests. No database needed.
   # ---------------------------------------------------------------------------
-  application:
-    name: Application checks
+  static:
+    name: Lint, types and unit tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Detect application scaffold
-        id: detect
-        run: |
-          if [ -f package.json ]; then
-            echo "present=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "No package.json yet — Phase 0 is governance only. Application gates inactive."
-          fi
-
       - uses: actions/setup-node@v4
-        if: steps.detect.outputs.present == 'true'
         with:
           node-version: 20
           cache: npm
 
-      - name: Install
-        if: steps.detect.outputs.present == 'true'
-        run: npm ci
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test
 
-      - name: Lint
-        if: steps.detect.outputs.present == 'true'
-        run: npm run lint
-
-      - name: Type check
-        if: steps.detect.outputs.present == 'true'
-        run: npm run typecheck
-
-      - name: Unit tests
-        if: steps.detect.outputs.present == 'true'
-        run: npm run test
-
-      - name: Database, RLS and invariant tests
-        if: steps.detect.outputs.present == 'true'
-        run: npm run test:db
-
-      - name: Build
-        if: steps.detect.outputs.present == 'true'
+      - name: Production build
         run: npm run build
 
       # INV-25 / NFR-04: the service-role key must never reach the browser.
       - name: Scan client bundle for the service-role key
-        if: steps.detect.outputs.present == 'true'
         run: |
-          if [ -d .next ]; then
-            if grep -rEl "SUPABASE_SERVICE_ROLE|service_role" .next/static 2>/dev/null; then
-              echo "::error::Service-role key reference found in the client bundle (INV-25)."
-              exit 1
-            fi
-            echo "Client bundle clean."
+          if grep -rEl "SUPABASE_SERVICE_ROLE|service_role" .next/static 2>/dev/null; then
+            echo "::error::Service-role key reference found in the client bundle (INV-25)."
+            exit 1
           fi
+          echo "Client bundle clean."
+
+  # ---------------------------------------------------------------------------
+  # Database and browser tests, against a real PostgreSQL instance.
+  # ---------------------------------------------------------------------------
+  database:
+    name: Database, RLS and end-to-end tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rajguru_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - run: npm ci
+
+      # Proves migrations build the schema from nothing — not just from the
+      # state that happens to be on a developer's machine.
+      - name: Apply migrations from scratch
+        run: ./scripts/db-migrate.sh
+
+      - name: Seed
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/seed.sql
+
+      - name: Database, RLS and constraint tests
+        run: npm run test:db
+
+      - name: Build
+        run: npm run build
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
 
       - name: End-to-end tests
-        if: steps.detect.outputs.present == 'true'
-        run: npm run test:e2e
-        env:
-          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+        run: npx playwright test e2e/master-data.spec.ts
 
-      - name: Accessibility tests
-        if: steps.detect.outputs.present == 'true'
-        run: npm run test:a11y
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

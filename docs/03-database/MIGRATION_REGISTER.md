@@ -7,12 +7,24 @@ as SQL **is not done** (AGENTS.md §4, development prompt §4).
 
 ## Status
 
-**No migrations exist.** The repository is at Phase 0 and contains no `supabase/` directory,
-no schema and no database.
+Three migrations exist, covering the master-data slice. **No Supabase project is
+provisioned**, so "dev" below means the local PostgreSQL 16 instance used during
+development, not a hosted environment.
 
 | # | File | Description | Phase | Applied dev | Applied staging | Applied prod | Reversible |
 |---|---|---|---|---|---|---|---|
-| — | — | No migrations yet | — | — | — | — | — |
+| 0001 | `0001_foundation.sql` | Extensions, structural enums (`location_node_type`, `identification_status`, `identification_confidence`, `location_precision`), interim `users`, append-only `audit_events` with mutation guards, `set_updated_at()` | 3 | Yes | No | No | Yes |
+| 0002 | `0002_organisation_and_locations.sql` | `companies`, `location_nodes` self-referencing tree, `location_node_type_rules` placement table, hierarchy validation and cycle-prevention trigger, `location_node_path()`, RLS | 3 | Yes | No | No | Yes |
+| 0003 | `0003_commodity_masters.sql` | `units`, `bag_types`, `commodity_groups`, `commodities`, `varieties`, `grades` with cross-commodity variety guard, RLS | 3 | Yes | No | No | Yes |
+
+`supabase/seed.sql` seeds realistic development data. It is idempotent and is **not**
+a migration — it never runs against staging or production.
+
+### Verified
+
+`./scripts/db-migrate.sh` applies all three to an empty database, and
+`./scripts/db-reset.sh` rebuilds from scratch. CI runs both on every push, so
+"applies from nothing" is continuously proven rather than assumed.
 
 ---
 

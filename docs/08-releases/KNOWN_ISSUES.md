@@ -6,13 +6,16 @@ Accepted limitations and unresolved items. Honest, current, and not aspirational
 
 | # | Issue | Impact | Plan |
 |---|---|---|---|
-| 1 | Permission, approval and override matrices are **drafts awaiting business approval** | Phase 3 cannot start; building against unapproved matrices means rebuilding | Take to Rajguru Foods management — blockers 1–3 in `CURRENT_STATE.md` |
+| 0 | **The application has no authentication.** `DEV_ACTOR_CODE` names the acting user for audit attribution only | Anyone who can reach the app can change master data | **Run locally only; do not expose to a network.** Auth is the next slice, and needs blockers 1–3 and 11 |
+| 1 | Permission, approval and override matrices are **drafts awaiting business approval** | Auth cannot be built correctly; building against unapproved matrices means rebuilding | Take to Rajguru Foods management — blockers 1–3 in `CURRENT_STATE.md` |
 | 2 | Insurance valuation basis is undecided | Blocks Phase 10 and finalising the data model | Business decision — blocker 4 |
-| 3 | No Supabase projects provisioned | Blocks Phase 3 | Provision development, staging and production — blocker 11 |
-| 4 | Zero of 25 invariants have tests | No automated protection of ledger correctness yet | Tests arrive with the features that carry them, Phases 3–10 |
-| 5 | CI workflow has never run against real code | Gates are configured but unproven | First run at Phase 3 |
+| 3 | No Supabase projects provisioned; the app runs on plain PostgreSQL through `pg` | Blocks auth and any deployment | Provision development, staging and production — blocker 11. Migrations are Supabase-compatible and will apply unchanged |
+| 4 | Zero of 25 invariants have tests | No automated protection of ledger correctness yet | Every invariant concerns the stock ledger, which does not exist. Two forward guards are already enforced in CI (INV-04 nullability, NFR-01 no floats) |
+| 5 | RLS is enabled on every table but carries no scope policies | Row-level scoping is not yet enforced | Arrives with the identity and access slice |
+| 5b | CI has never run on GitHub | Gates are configured and pass locally, but the hosted run is unproven | First push exercises it |
 | 6 | Restore has never been tested | An untested backup is not a backup | First test when a database exists; before go-live |
-| 7 | Decimal library not yet chosen | Quantity arithmetic approach unconfirmed | Choose at Phase 4 with an ADR |
+| 7 | `decimal.js` is installed but not yet used | No quantity arithmetic exists yet — capacities are stored and displayed, never computed | Will be used from Phase 4 where arithmetic begins. The schema already forbids floating-point columns, checked in CI |
+| 8 | `users` is an interim table, not Supabase Auth | Will be replaced by `auth.users` + `profiles` | Migration planned with the identity slice |
 
 ## Accepted limitations for the first release
 

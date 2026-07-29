@@ -1,13 +1,13 @@
 # Screen Register
 
-Every screen, its purpose and its real status. **Status: none built.**
+Every screen, its purpose and its real status. **Status: 4 of 50 built and verified running.**
 
 Navigation per blueprint §27.1.
 
 | # | Screen | Purpose | Phase | Status |
 |---|---|---|---|---|
 | 1 | Login | Authentication, MFA | 3 | Not started |
-| 2 | Dashboard — Management | Stock, ageing, discrepancy, underinsurance, approvals, alerts | 12 | Not started |
+| 2 | Dashboard — Management | Stock, ageing, discrepancy, underinsurance, approvals, alerts | 12 | **Partial** — master-data counts and storage capacity only; no stock |
 | 3 | Dashboard — Weighment | Drafts, awaiting verification, unallocated, duplicates | 12 | Not started |
 | 4 | Dashboard — Identification | Lot pending, location pending, provisional ageing | 12 | Not started |
 | 5 | Dashboard — Warehouse | Occupancy, pending movements, fumigation, tasks | 12 | Not started |
@@ -49,13 +49,27 @@ Navigation per blueprint §27.1.
 | 41 | Reports hub | 50 reports, filters, saved views, export | 12 | Not started |
 | 42 | Global search | Across all entities | 12 | Not started |
 | 43 | Party master | Parties and types | 3 | Not started |
-| 44 | Location master | Hierarchy, capacity, dimensions | 3 | Not started |
-| 45 | Commodity master | Commodities, varieties, grades | 3 | Not started |
+| 44 | Location master | Hierarchy, capacity, dimensions | 3 | **Verified running** |
+| 45 | Commodity master | Commodities, varieties, grades | 3 | **Verified running** |
 | 46 | Reason code master | Gain, loss, damage, override, adjustment reasons | 3 | Not started |
 | 47 | User and role administration | Users, roles, scopes, limits | 3 | Not started |
 | 48 | Audit trail viewer | Complete history | 3 | Not started |
 | 49 | Settings | System configuration, thresholds, tolerances | 3 | Not started |
 | 50 | Notifications | Alerts and preferences | 12 | Not started |
+
+## Built so far
+
+| Screen | Route | States implemented |
+|---|---|---|
+| Dashboard (partial) | `/` | loading, empty, success, mobile |
+| Location master | `/locations` | loading, empty, error, validation, success, mobile |
+| Commodity master | `/commodities` | loading, empty, error, validation, success, mobile |
+| Location / commodity forms | inline | validation, error, success, pending, mobile |
+
+**Not yet implemented on these screens:** permission-denied state (no auth exists), audit
+timeline (data is captured, not yet surfaced), attachments, approval status.
+
+---
 
 ## Completion criteria
 

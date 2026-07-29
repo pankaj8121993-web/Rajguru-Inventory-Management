@@ -15,6 +15,15 @@ Chronological record of decisions. Architectural decisions get a full ADR in
 | 8 | 2026-07-29 | A decimal library is mandatory for quantities | JavaScript `number` cannot represent stock quantities exactly. Choice between `decimal.js` and `big.js` deferred to Phase 4 | — |
 | 9 | 2026-07-29 | Permission, approval and override matrices drafted but marked as requiring business approval | They describe how the business should operate; only the business can approve them. Phase 3 is blocked until they are | — |
 
+| 10 | 2026-07-29 | Build against local PostgreSQL 16 with the `pg` driver, not Supabase, until a Supabase project is provisioned | Docker is unavailable in the build environment so the Supabase local stack cannot run. Migrations are written Supabase-compatible and apply unchanged; the data layer is one module to swap | — |
+| 11 | 2026-07-29 | Interim `users` table plus `DEV_ACTOR_CODE` for audit attribution, instead of building a throwaway login | Real auth needs the approved permission matrix (blockers 1–3) and Supabase Auth (blocker 11). An interim login would be discarded. Attribution still works so audit is real from day one | — |
+| 12 | 2026-07-29 | Location placement rules live in a `location_node_type_rules` table, enforced by trigger, not in application code | The business may legitimately want a heap inside a bay at one site and not another. A table is editable; a hard-coded rule needs a developer | — |
+| 13 | 2026-07-29 | Shared types split into `location-types.ts`, kept free of `server-only` | Client components need node-type labels. Keeping data access in `locations.ts` preserves ADR-0004 while letting the UI import constants | — |
+| 14 | 2026-07-29 | Zod schemas extracted to `src/lib/validation/`, not `server-only` | Makes them unit-testable and gives one definition of validity shared by action and test. Server-side validation remains authoritative | — |
+| 15 | 2026-07-29 | Replaced `next lint` with the ESLint CLI | `next lint` is deprecated in Next 15 and prompts interactively, so it cannot run in CI | — |
+| 16 | 2026-07-29 | Pinned `postcss` 8.5.18 and `sharp` 0.35.0 through npm overrides | Three high-severity advisories arrived transitively through Next. npm's suggested fix was downgrading Next to 9.3.3, which is not a fix. Overrides clear the audit while keeping Next current | — |
+| 17 | 2026-07-29 | Playwright owns the dev server and resets the database in `globalSetup` | Tests that mutate shared state gave order-dependent results — a created godown changed a count another test asserted. Resetting first makes failures real | — |
+
 ## Recording a decision
 
 Add a row when a decision is made, not later. If it materially affects stock accuracy,

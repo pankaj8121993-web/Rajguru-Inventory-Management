@@ -7,8 +7,9 @@ and outward, final lots, provisional stock, unidentified and mixed stock, multi-
 storage locations, internal transfers, quality, fumigation, physical verification, gain and
 loss, insurance coverage and interactive 2D warehouse layout.
 
-> **Status: Phase 0 — Governance foundation.**
-> No operational features are implemented yet. See
+> **Status: Phase 3, partial — master data for locations and commodities is working.**
+> There is no authentication, no weighment entry and no stock ledger yet.
+> **Run locally only.** See
 > [`docs/09-ai-governance/CURRENT_STATE.md`](docs/09-ai-governance/CURRENT_STATE.md)
 > for the authoritative, honest status of every module.
 
@@ -26,6 +27,40 @@ at the time of inward.
 
 ---
 
+## Running it locally
+
+Requires Node 20+ and PostgreSQL 16 reachable on `127.0.0.1:54322`
+(adjust `DATABASE_URL` if yours differs).
+
+```bash
+cp .env.example .env.local
+npm install
+./scripts/db-reset.sh      # apply migrations, then seed realistic test data
+npm run dev                # http://localhost:3000
+```
+
+You can then create your own facilities, plots, godowns, bays, stacks, commodities,
+varieties and grades directly in the app — nothing is hard-coded.
+
+### Checks
+
+```bash
+npm run lint          # ESLint
+npm run typecheck     # TypeScript, strict
+npm run test          # Vitest — validation unit tests
+npm run test:db       # constraints, triggers, RLS coverage
+npm run test:e2e      # Playwright — resets the database first
+./scripts/check-structure.sh
+```
+
+All of the above currently pass: 16 unit, 12 database assertions, 7 end-to-end.
+
+> **The app has no authentication.** `DEV_ACTOR_CODE` in `.env.local` only names the user
+> recorded against each audit event. Do not expose this to a network until the identity
+> and access slice lands.
+
+---
+
 ## Intended stack
 
 | Layer | Choice |
@@ -40,7 +75,9 @@ at the time of inward.
 | Testing | Vitest, React Testing Library, Playwright, axe-core |
 | Architecture | Secure modular monolith |
 
-No application code exists yet. The stack is recorded in
+The database is currently plain PostgreSQL 16 accessed through `pg`, because no Supabase
+project is provisioned yet (decision 10 in the decision log). Migrations are written
+Supabase-compatible and will apply unchanged. The stack is recorded in
 [`docs/02-architecture/ARCHITECTURE.md`](docs/02-architecture/ARCHITECTURE.md) and
 [ADR-0001](docs/02-architecture/adr/ADR-0001-modular-monolith-supabase.md).
 

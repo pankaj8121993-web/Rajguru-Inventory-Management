@@ -10,19 +10,40 @@ reason selected.
 
 ---
 
-## Status
+## Installed — evaluated 2026-07-29
 
-No dependencies are installed yet. The repository is at Phase 0 (governance only) and
-contains no application code, no `package.json` and no lockfile.
+| Package | Version | Purpose | License | Advisories | Notes |
+|---|---|---|---|---|---|
+| `next` | 15.5.22 | Framework | MIT | **Clean at this version.** 15.5.4 carried CVE-2025-66478 and was upgraded before any code was written against it | Major upgrades held from Dependabot for deliberate review |
+| `react`, `react-dom` | 19.1.1 | UI runtime | MIT | Clean | Matches the Next.js support matrix |
+| `typescript` | 5.7.2 | Types | Apache-2.0 | Clean | `strict: true` |
+| `pg` | 8.13.1 | PostgreSQL driver | MIT | Clean | Server-only. Replaced by `@supabase/supabase-js` when Supabase is provisioned (decision 10) |
+| `zod` | 3.24.1 | Validation | MIT | Clean | Server boundary is authoritative |
+| `decimal.js` | 10.4.3 | Exact decimal arithmetic | MIT | Clean | **Installed, not yet used** — no quantity arithmetic exists. Required from Phase 4 (NFR-01) |
+| `tailwindcss` | 3.4.17 | Styling | MIT | Clean | |
+| `postcss` | 8.5.18 | CSS pipeline | MIT | Pinned via override to clear three advisories reaching in through Next | |
+| `sharp` | 0.35.0 | Image optimisation (Next transitive) | Apache-2.0 | Pinned via override; <0.35.0 inherits libvips CVEs | |
+| `vitest` | 2.1.8 | Unit tests | MIT | Clean | dev |
+| `@playwright/test` | latest | End-to-end tests | Apache-2.0 | Clean | dev; uses the pre-installed Chromium |
+| `eslint` + `eslint-config-next` | 9 / 15.5.22 | Linting | MIT | Clean | dev |
+| `server-only` | latest | Build-time guard against client imports | MIT | Clean | Enforces ADR-0004 at compile time |
 
-The table below is the **approved candidate list** — dependencies pre-cleared by the
-blueprint and development prompt §5. Each still requires its evaluation row completed at
-the moment of installation, because license, advisories and release activity must be
-checked against reality on that date rather than assumed from this list.
+`npm audit --omit=dev` reports **0 vulnerabilities**.
+
+### Not yet installed
+
+`konva` / `react-konva` (Phase 11), `three` / `@react-three/*` (Phase 14),
+`@tanstack/react-query` and `@tanstack/react-table` (needed for the Phase 4 bulk-entry
+grid), shadcn/ui components, `@axe-core/playwright`, `@sentry/nextjs`,
+`@supabase/supabase-js` and `@supabase/ssr` (blocked on blocker 11).
 
 ---
 
-## Approved candidates
+## Approved candidates — not yet installed
+
+Pre-cleared by the blueprint and development prompt §5. Each still requires its evaluation
+row completed **at the moment of installation** — license, advisories and release activity
+must be checked against reality on that date, not assumed from this list.
 
 ### Core
 

@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: 250 250 249;
+  --surface: 255 255 255;
+  --border: 231 229 228;
+  --text: 28 25 23;
+  --muted: 120 113 108;
+  --accent: 13 91 74;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: 12 14 13;
+    --surface: 24 27 26;
+    --border: 46 51 49;
+    --text: 240 240 238;
+    --muted: 156 163 159;
+    --accent: 74 190 160;
+  }
+}
+
+body {
+  background: rgb(var(--bg));
+  color: rgb(var(--text));
+}
+
+/* Quantities must align in columns — tabular figures throughout
+   (docs/05-design/DESIGN_SYSTEM.md). */
+.num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+@layer components {
+  .surface { background: rgb(var(--surface)); border-color: rgb(var(--border)); }
+  .muted   { color: rgb(var(--muted)); }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-md px-3 py-2
+           text-sm font-medium transition-colors min-h-[44px]
+           focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2;
+  }
+  .btn-primary { @apply btn text-white; background: rgb(var(--accent)); }
+  .btn-primary:hover { filter: brightness(1.1); }
+  .btn-secondary {
+    @apply btn border surface;
+    border-color: rgb(var(--border));
+  }
+  .btn-secondary:hover { filter: brightness(0.97); }
+
+  .field {
+    @apply w-full rounded-md border px-3 py-2 text-sm min-h-[44px] surface;
+    border-color: rgb(var(--border));
+    color: rgb(var(--text));
+  }
+  .field:focus { outline: 2px solid rgb(var(--accent)); outline-offset: 1px; }
+
+  .label { @apply block text-sm font-medium mb-1.5; }
+  .hint  { @apply text-xs muted mt-1; }
+
+  .card { @apply rounded-lg border surface; border-color: rgb(var(--border)); }
+
+  .badge {
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border;
+    border-color: rgb(var(--border));
+  }
+}
