@@ -7,7 +7,7 @@ as SQL **is not done** (AGENTS.md §4, development prompt §4).
 
 ## Status
 
-Five migrations exist, covering the master-data slices. **No Supabase project is
+Seven migrations exist, covering master data, weighment and access control. **No Supabase project is
 provisioned**, so "dev" below means the local PostgreSQL 16 instance used during
 development, not a hosted environment.
 
@@ -18,9 +18,18 @@ development, not a hosted environment.
 | 0003 | `0003_commodity_masters.sql` | `units`, `bag_types`, `commodity_groups`, `commodities`, `varieties`, `grades` with cross-commodity variety guard, RLS | 3 | Yes | No | No | Yes |
 | 0004 | `0004_parties_and_transport.sql` | `party_types`, `parties` with GSTIN/PAN/IFSC/mobile/pincode format checks and partial unique indexes, `party_party_types` many-to-many with two deferred constraint triggers enforcing "at least one type", `employees`, `vehicles`, `drivers`, `weighbridges`, RLS | 3 | Yes | No | No | Yes |
 | 0005 | `0005_reason_codes.sql` | `reason_code_categories`, `reason_codes` with evidence/approval/exception flags, `document_types`, RLS | 3 | Yes | No | No | Yes |
+| 0006 | `0006_weighment.sql` | `system_settings` (tolerances as configuration), `weighment_slips` with **generated** calculated-net and net-difference columns, posted-record and maker-checker guards, `duplicate_reviews`, `find_duplicate_weighments()`, RLS | 4 | Yes | No | No | Yes |
+| 0007 | `0007_roles_and_users.sql` | `roles`, `permissions`, `role_permissions`, scoped `user_roles`, `user_effective_permissions()`, `user_has_permission()` with hierarchy inheritance, RLS | 3 | Yes | No | No | Yes |
 
 `supabase/seed.sql` seeds realistic development data. It is idempotent and is **not**
 a migration — it never runs against staging or production.
+
+### Note on the generated net weight
+
+`calculated_net_weight_kg` and `net_difference_kg` are `GENERATED ALWAYS ... STORED`
+columns. This makes DR-01 structural rather than a convention: it is impossible to write a
+wrong net weight, even from a hand-written query or a future bug in the service layer. A
+database test asserts both columns remain generated.
 
 ### Note on the party-type rule
 

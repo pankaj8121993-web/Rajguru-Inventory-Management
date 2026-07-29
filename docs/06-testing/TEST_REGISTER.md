@@ -7,13 +7,13 @@ results, never intended results.**
 
 | Suite | Scope | Tests | Status | Last run |
 |---|---|---|---|---|
-| `npm run test` (Vitest) | Validation schemas for locations, commodities, grades, parties, vehicles, reason codes | 38 | **Passing** | 2026-07-29 |
-| `npm run test:db` | Schema guarantees, constraints, triggers, RLS coverage | 22 assertions | **Passing** | 2026-07-29 |
-| `npm run test:e2e` (Playwright) | Master-data workflows through a real browser | 19 | **Passing** | 2026-07-29 |
+| `npm run test` (Vitest) | Validation and arithmetic: locations, commodities, parties, vehicles, reason codes, weighment | 56 | **Passing** | 2026-07-29 |
+| `npm run test:db` | Schema guarantees, constraints, triggers, RLS coverage, access control | 37 assertions | **Passing** | 2026-07-29 |
+| `npm run test:e2e` (Playwright) | Master data, weighment and administration through a real browser | 30 | **Passing** | 2026-07-29 |
 | `npm run lint` (ESLint) | Code quality | — | **Clean** | 2026-07-29 |
 | `npm run typecheck` (tsc) | Type safety, strict mode | — | **Clean** | 2026-07-29 |
 
-Total: **79 automated checks passing.**
+Total: **123 automated checks passing**, stable across repeated runs.
 
 ## What the database tests prove
 
@@ -36,6 +36,17 @@ Total: **79 automated checks passing.**
 - A malformed vehicle registration is rejected
 - A negative vehicle capacity is rejected
 - A duplicate reason code within a category is rejected
+- The calculated net weight and net difference are generated columns and cannot be
+  written directly (DR-01)
+- A gross weight at or below tare is rejected
+- The person who entered a weighment cannot verify it (INV-24)
+- A duplicate slip number is rejected
+- Super Administrator holds no commercial override permission (DR-50)
+- The Physical Verification Team holds no stock-adjust permission (INV-13)
+- The Insurance Manager holds no stock-write permission (INV-21)
+- The Auditor holds no write permission anywhere
+- A facility-scoped permission reaches a stack inside it, and does not reach another facility
+- The same role cannot be assigned twice at the same scope
 - Audit events cannot be updated or deleted (NFR-14)
 
 ## What the end-to-end tests prove

@@ -11,7 +11,7 @@
     "test": "vitest run --passWithNoTests",
     "db:reset": "./scripts/db-reset.sh",
     "db:migrate": "./scripts/db-migrate.sh",
-    "test:e2e": "playwright test e2e/master-data.spec.ts e2e/masters.spec.ts",
+    "test:e2e": "playwright test e2e/master-data.spec.ts e2e/masters.spec.ts e2e/weighment.spec.ts",
     "test:db": "./scripts/test-db.sh"
   },
   "dependencies": {

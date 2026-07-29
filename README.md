@@ -7,8 +7,7 @@ and outward, final lots, provisional stock, unidentified and mixed stock, multi-
 storage locations, internal transfers, quality, fumigation, physical verification, gain and
 loss, insurance coverage and interactive 2D warehouse layout.
 
-> **Status: Phase 3, partial — master data for locations, commodities, parties,
-> vehicles and reason codes is working.**
+> **Status: master data, weighment slip entry and the role matrix are working.**
 > There is no authentication, no weighment entry and no stock ledger yet.
 > **Run locally only.** See
 > [`docs/09-ai-governance/CURRENT_STATE.md`](docs/09-ai-governance/CURRENT_STATE.md)
@@ -41,8 +40,8 @@ npm run dev                # http://localhost:3000
 ```
 
 You can then create your own facilities, plots, godowns, bays, stacks, commodities,
-varieties, grades, parties, vehicles and reason codes directly in the app — nothing is
-hard-coded.
+varieties, grades, parties, vehicles and reason codes directly in the app, and enter
+weighment slips — nothing is hard-coded.
 
 ### Checks
 
@@ -55,11 +54,13 @@ npm run test:e2e      # Playwright — resets the database first
 ./scripts/check-structure.sh
 ```
 
-All of the above currently pass: 38 unit, 22 database assertions, 19 end-to-end.
+All of the above currently pass: 56 unit, 37 database assertions, 30 end-to-end.
 
-> **The app has no authentication.** `DEV_ACTOR_CODE` in `.env.local` only names the user
-> recorded against each audit event. Do not expose this to a network until the identity
-> and access slice lands.
+> **The app has no authentication yet — deliberately.** Roles, permissions and scoped
+> assignments are defined and visible under Administration, but login is deferred until
+> feature development is complete, at which point the administrator creates real accounts.
+> `DEV_ACTOR_CODE` in `.env.local` only names the user recorded against each audit event.
+> **Do not expose this to a network until authentication lands.**
 
 ---
 

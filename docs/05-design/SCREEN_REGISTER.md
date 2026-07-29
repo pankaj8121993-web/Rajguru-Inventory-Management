@@ -1,6 +1,6 @@
 # Screen Register
 
-Every screen, its purpose and its real status. **Status: 7 of 50 built and verified running.**
+Every screen, its purpose and its real status. **Status: 10 of 50 built and verified running.**
 
 Navigation per blueprint §27.1.
 
@@ -14,11 +14,11 @@ Navigation per blueprint §27.1.
 | 6 | Dashboard — Insurance | Cover, uninsured, underinsured, expiry, utilisation | 12 | Not started |
 | 7 | Dashboard — Exception | Negative attempts, duplicates, overrides, backdating, self-approval attempts | 12 | Not started |
 | 8 | Tasks | Personal work queue | 3 | Not started |
-| 9 | Weighment list | Search, filter, status | 4 | Not started |
-| 10 | Weighment entry — single | One slip | 4 | Not started |
+| 9 | Weighment list | Search, filter, status | 4 | **Verified running** |
+| 10 | Weighment entry — single | One slip | 4 | **Verified running** |
 | 11 | **Weighment bulk grid** | Spreadsheet entry, paste, import — the highest-value screen | 4 | Not started |
 | 12 | Weighment detail | Full record, attachment, audit timeline | 4 | Not started |
-| 13 | Duplicate review | Resolve suspected duplicates | 4 | Not started |
+| 13 | Duplicate review | Resolve suspected duplicates | 4 | **Verified running** — inline in the register |
 | 14 | Inward list | Receipt batches | 5 | Not started |
 | 15 | Inward entry | Create inward, **with or without a lot** | 5 | Not started |
 | 16 | Provisional stock register | Provisional, unidentified, mixed, with ageing | 5 | Not started |
@@ -52,8 +52,8 @@ Navigation per blueprint §27.1.
 | 44 | Location master | Hierarchy, capacity, dimensions | 3 | **Verified running** |
 | 45 | Commodity master | Commodities, varieties, grades | 3 | **Verified running** |
 | 46 | Reason code master | Gain, loss, damage, override, adjustment reasons | 3 | **Verified running** |
-| 47 | User and role administration | Users, roles, scopes, limits | 3 | Not started |
-| 48 | Audit trail viewer | Complete history | 3 | Not started |
+| 47 | User and role administration | Users, roles, scopes, limits | 3 | **Verified running** — assignment works; login does not exist |
+| 48 | Audit trail viewer | Complete history | 3 | **Partial** — recent events on the Administration screen |
 | 49 | Settings | System configuration, thresholds, tolerances | 3 | Not started |
 | 50 | Notifications | Alerts and preferences | 12 | Not started |
 
@@ -67,6 +67,8 @@ Navigation per blueprint §27.1.
 | Party master | `/parties` | loading, empty, error, validation, success, mobile |
 | Vehicle master | `/vehicles` | loading, empty, error, validation, success, mobile |
 | Reason code master | `/reason-codes` | loading, empty, error, validation, success, mobile |
+| Weighment register and entry | `/weighments` | loading, empty, error, validation, success, mobile |
+| Administration | `/administration` | loading, empty, error, validation, success, mobile |
 | Location / commodity forms | inline | validation, error, success, pending, mobile |
 
 **Not yet implemented on these screens:** permission-denied state (no auth exists), audit

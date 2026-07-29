@@ -121,6 +121,82 @@ rejects "a duplicate reason code within a category is rejected" \
    select category_id,code,'Dup' from reason_codes limit 1"
 
 echo
+echo "Weighment rules"
+equals "calculated net is a generated column, never writable" \
+  "select is_generated from information_schema.columns
+    where table_name='weighment_slips' and column_name='calculated_net_weight_kg'" "ALWAYS"
+
+equals "net difference is generated too" \
+  "select is_generated from information_schema.columns
+    where table_name='weighment_slips' and column_name='net_difference_kg'" "ALWAYS"
+
+rejects "a gross weight below tare is rejected" \
+  "insert into weighment_slips (slip_no,weighment_date,direction,gross_weight_kg,tare_weight_kg)
+   values ('TEST-W1',current_date,'inward',1000,2000)"
+
+rejects "a zero gross weight is rejected" \
+  "insert into weighment_slips (slip_no,weighment_date,direction,gross_weight_kg,tare_weight_kg)
+   values ('TEST-W2',current_date,'inward',0,0)"
+
+rejects "the calculated net cannot be written directly (DR-01)" \
+  "insert into weighment_slips (slip_no,weighment_date,direction,gross_weight_kg,tare_weight_kg,calculated_net_weight_kg)
+   values ('TEST-W3',current_date,'inward',2000,1000,9999)"
+
+rejects "the entry user cannot also be the verifier (INV-24)" \
+  "insert into weighment_slips (slip_no,weighment_date,direction,gross_weight_kg,tare_weight_kg,entry_user_id,verified_by_id,verified_at)
+   select 'TEST-W4',current_date,'inward',2000,1000,u.id,u.id,now() from users u limit 1"
+
+rejects "a duplicate slip number is rejected" \
+  "insert into weighment_slips (slip_no,weighment_date,direction,gross_weight_kg,tare_weight_kg)
+   select slip_no,current_date,'inward',2000,1000 from weighment_slips limit 1"
+
+echo
+echo "Access control rules"
+equals "Super Administrator does NOT hold commercial override (DR-50)" \
+  "select count(*) from role_permissions rp
+     join roles r on r.id = rp.role_id
+     join permissions p on p.id = rp.permission_id
+    where r.code='SUPER_ADMIN' and p.module='governance' and p.action='override'" "0"
+
+equals "Physical Verification Team cannot adjust stock (INV-13)" \
+  "select count(*) from role_permissions rp
+     join roles r on r.id = rp.role_id
+     join permissions p on p.id = rp.permission_id
+    where r.code='PV_TEAM' and p.module='stock' and p.action='adjust'" "0"
+
+equals "Insurance Manager cannot adjust stock (INV-21)" \
+  "select count(*) from role_permissions rp
+     join roles r on r.id = rp.role_id
+     join permissions p on p.id = rp.permission_id
+    where r.code='INS_MANAGER' and p.action in ('adjust','create','transfer')" "0"
+
+equals "Auditor holds no write permission anywhere" \
+  "select count(*) from role_permissions rp
+     join roles r on r.id = rp.role_id
+     join permissions p on p.id = rp.permission_id
+    where r.code='AUDITOR'
+      and p.action::text not in ('view','view_audit','view_valuation','view_insurance','export','print')" "0"
+
+equals "a facility-scoped permission reaches a stack inside it" \
+  "select user_has_permission(
+     (select id from users where code='EMP003'),'weighment','create',
+     (select id from location_nodes where code='ALY-G1-A-S1'))" "t"
+
+equals "a facility-scoped permission does not reach another facility" \
+  "select user_has_permission(
+     (select id from users where code='EMP003'),'weighment','create',
+     (select id from location_nodes where code='MUR-G1'))" "f"
+
+equals "an unscoped assignment applies everywhere" \
+  "select user_has_permission(
+     (select id from users where code='EMP001'),'stock','view',
+     (select id from location_nodes where code='MUR-G1'))" "t"
+
+rejects "the same role at the same scope cannot be assigned twice" \
+  "insert into user_roles (user_id, role_id, location_node_id)
+   select user_id, role_id, location_node_id from user_roles limit 1"
+
+echo
 echo "Audit trail is append-only (NFR-14)"
 psql "$URL" -q -c "insert into audit_events (actor_label,action,entity_table)
                    values ('db-test','create','test')" >/dev/null 2>&1

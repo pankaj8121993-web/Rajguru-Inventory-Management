@@ -335,7 +335,12 @@ export async function listVehicles(opts: {
 
   const where = conditions.length ? `where ${conditions.join(' and ')}` : '';
   return query<Vehicle>(
-    `select v.*, p.legal_name as transporter_name
+    `select v.*,
+            v.insurance_valid_to::text as insurance_valid_to,
+            v.pollution_valid_to::text as pollution_valid_to,
+            v.fitness_valid_to::text   as fitness_valid_to,
+            v.permit_valid_to::text    as permit_valid_to,
+            p.legal_name as transporter_name
        from vehicles v
        left join parties p on p.id = v.transporter_party_id
        ${where}

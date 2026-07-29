@@ -30,6 +30,13 @@ Chronological record of decisions. Architectural decisions get a full ADR in
 | 21 | 2026-07-29 | The transporter on a vehicle is a party holding the Transporter type, not a separate transporter master | The same firm may be both a transporter and a trader. A separate master would duplicate it | — |
 | 22 | 2026-07-29 | Seed document-validity dates are relative to `current_date` | Hard-coded dates silently stop exercising the expiry paths as time passes. Relative offsets keep one certificate genuinely expired whenever the seed is loaded | — |
 
+| 23 | 2026-07-29 | **Authentication deferred until after feature development**; the administrator will create real user accounts then | Rajguru Foods decision. It unblocks feature work that would otherwise wait on Supabase provisioning and matrix approval. The role matrix and scoped assignments are built now so nothing has to be retrofitted, and every module is written against `user_has_permission()` from the start | — |
+| 24 | 2026-07-29 | Calculated net weight and net difference are `GENERATED ALWAYS ... STORED` columns | Makes DR-01 structural instead of conventional: no query, service bug or manual fix can write a wrong net weight. Verified by a database test asserting both stay generated | — |
+| 25 | 2026-07-29 | Net-weight tolerances live in `system_settings`, not code | DR-03. Operations must be able to change a tolerance without a deployment. Defaulted to 0.5% warn / 2% escalate pending confirmation (blocker 7) | — |
+| 26 | 2026-07-29 | Duplicate detection reports candidates and records a review row; it never auto-merges | DR-05. Two genuinely separate loads can share a vehicle, weight and day. Only a person can tell the difference, so the system raises the question rather than answering it | — |
+| 27 | 2026-07-29 | A scoped permission inherits down the location hierarchy | A permission granted at a facility must reach its godowns, bays and stacks, or every assignment would need enumerating. Implemented as a recursive ancestor walk in `user_has_permission()` | — |
+| 28 | 2026-07-29 | Date columns are cast to text in queries | `pg` returns `date` as a JavaScript `Date`, which React cannot render and which does not match the declared string types. Casting at the query boundary keeps the contract honest | — |
+
 ## Recording a decision
 
 Add a row when a decision is made, not later. If it materially affects stock accuracy,

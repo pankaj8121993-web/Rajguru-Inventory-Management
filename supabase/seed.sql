@@ -549,3 +549,382 @@ insert into document_types (code, name, applies_to, is_mandatory) values
 on conflict (code) do nothing;
 
 commit;
+
+-- ===========================================================================
+-- Roles, permissions and the role matrix (migration 0007)
+--
+-- Seeded from docs/04-security/PERMISSION_MATRIX.md, which is a DRAFT awaiting
+-- Rajguru Foods management approval. These grants are a starting point to build
+-- against, not an approved matrix.
+-- ===========================================================================
+
+begin;
+
+-- ---------------------------------------------------------------------------
+-- Roles (blueprint §5.4)
+-- ---------------------------------------------------------------------------
+insert into roles (code, name, description, may_override, sort_order) values
+  ('SUPER_ADMIN',   'Super Administrator',      'Technical administration. Commercial override is granted separately (DR-50).', false, 10),
+  ('BUS_ADMIN',     'Business Administrator',   'Business configuration and senior approvals.',                                   true,  20),
+  ('MGMT_VIEWER',   'Management Viewer',        'Read-only across the business, including valuation and insurance.',              false, 30),
+  ('WH_MANAGER',    'Warehouse Manager',        'Runs a facility. Approves operational transactions within scope.',               false, 40),
+  ('WH_SUPERVISOR', 'Warehouse Supervisor',     'Supervises a godown or plot.',                                                   false, 50),
+  ('WH_OPERATOR',   'Warehouse Operator',       'Records inward, movement and identification.',                                   false, 60),
+  ('WEIGH_ENTRY',   'Weighment Entry Operator', 'Enters weighment slips.',                                                        false, 70),
+  ('WEIGH_VERIFY',  'Weighment Verifier',       'Verifies weighment slips. Cannot verify their own (INV-24).',                    false, 80),
+  ('GATE_OPERATOR', 'Gate Operator',            'Records gate entry and exit.',                                                   false, 90),
+  ('QUALITY_INSP',  'Quality Inspector',        'Records quality inspections and results.',                                       false, 100),
+  ('FUMIG_OP',      'Fumigation Operator',      'Executes fumigation.',                                                           false, 110),
+  ('FUMIG_APPROVER','Fumigation Approver',      'Approves fumigation and safety-period release.',                                 true,  120),
+  ('STOCK_ACCT',    'Stock Accountant',         'Owns the ledger. Approves identification and adjustments.',                      false, 130),
+  ('DISPATCH_EXEC', 'Dispatch Executive',       'Records outward dispatch.',                                                      false, 140),
+  ('PV_TEAM',       'Physical Verification Team','Records physical verification. Cannot alter the ledger (INV-13).',              false, 150),
+  ('DISCREP_REVIEW','Discrepancy Reviewer',     'Investigates and closes discrepancies.',                                         false, 160),
+  ('INS_MANAGER',   'Insurance Manager',        'Maintains policies and coverage. Read-only on stock (INV-21).',                  true,  170),
+  ('INS_VIEWER',    'Insurance Viewer',         'Views insurance coverage.',                                                      false, 180),
+  ('AUDITOR',       'Auditor',                  'Read-only across everything, including full audit history.',                     false, 190),
+  ('REPORT_VIEWER', 'Report Viewer',            'Views and exports reports within scope.',                                        false, 200),
+  ('READ_ONLY',     'Read-Only User',           'Views stock within scope.',                                                      false, 210)
+on conflict (code) do nothing;
+
+-- ---------------------------------------------------------------------------
+-- Permissions — action per module
+-- ---------------------------------------------------------------------------
+insert into permissions (module, action, name, is_controlled)
+select v.module, v.action::permission_action, v.name, v.controlled
+from (values
+  ('masters','view','View masters',false),
+  ('masters','create','Create masters',false),
+  ('masters','manage_master','Manage masters',true),
+  ('locations','view','View locations',false),
+  ('locations','manage_master','Manage locations',true),
+  ('parties','view','View parties',false),
+  ('parties','manage_master','Manage parties',true),
+  ('weighment','view','View weighments',false),
+  ('weighment','create','Enter weighments',false),
+  ('weighment','edit_draft','Edit draft weighments',false),
+  ('weighment','submit','Submit weighments',false),
+  ('weighment','verify','Verify weighments',true),
+  ('weighment','reverse','Reverse weighments',true),
+  ('inward','view','View inward',false),
+  ('inward','create','Create inward',false),
+  ('inward','approve','Approve inward',true),
+  ('identification','view','View identification',false),
+  ('identification','allocate','Allocate provisional stock',false),
+  ('identification','reclassify','Reclassify stock',false),
+  ('identification','approve','Approve identification',true),
+  ('stock','view','View stock',false),
+  ('stock','view_valuation','View stock valuation',false),
+  ('stock','adjust','Adjust stock',true),
+  ('stock','close','Close a lot',true),
+  ('stock','reopen','Reopen a lot',true),
+  ('transfer','view','View transfers',false),
+  ('transfer','create','Request transfers',false),
+  ('transfer','approve','Approve transfers',true),
+  ('transfer','transfer','Issue and receive transfers',false),
+  ('outward','view','View outward',false),
+  ('outward','create','Create outward',false),
+  ('outward','approve','Approve outward',true),
+  ('quality','view','View quality',false),
+  ('quality','create','Record quality results',false),
+  ('quality','approve','Approve quality decisions',true),
+  ('fumigation','view','View fumigation',false),
+  ('fumigation','create','Record fumigation',false),
+  ('fumigation','approve','Approve fumigation',true),
+  ('verification','view','View physical verification',false),
+  ('verification','create','Record physical verification',false),
+  ('verification','approve','Approve physical verification',true),
+  ('insurance','view_insurance','View insurance',false),
+  ('insurance','edit_insurance','Maintain insurance',true),
+  ('reports','view','View reports',false),
+  ('reports','export','Export reports',false),
+  ('reports','print','Print reports',false),
+  ('governance','view_audit','View audit history',false),
+  ('governance','override','Apply an override',true),
+  ('governance','approve','Approve an override',true),
+  ('administration','manage_user','Manage users and roles',true)
+) as v(module, action, name, controlled)
+on conflict (module, action) do nothing;
+
+-- ---------------------------------------------------------------------------
+-- Role matrix
+-- ---------------------------------------------------------------------------
+
+-- Read-only roles.
+insert into role_permissions (role_id, permission_id)
+select r.id, p.id from roles r, permissions p
+ where r.code = 'READ_ONLY' and (p.module, p.action::text) in (('stock','view'),('reports','view'))
+on conflict do nothing;
+
+insert into role_permissions (role_id, permission_id)
+select r.id, p.id from roles r, permissions p
+ where r.code = 'REPORT_VIEWER'
+   and (p.module, p.action::text) in
+       (('reports','view'),('reports','export'),('reports','print'),('stock','view'))
+on conflict do nothing;
+
+-- Auditor: read everything, change nothing.
+insert into role_permissions (role_id, permission_id)
+select r.id, p.id from roles r, permissions p
+ where r.code = 'AUDITOR'
+   and p.action::text in ('view','view_audit','view_valuation','view_insurance','export','print')
+on conflict do nothing;
+
+-- Management viewer: read, including money.
+insert into role_permissions (role_id, permission_id)
+select r.id, p.id from roles r, permissions p
+ where r.code = 'MGMT_VIEWER'
+   and p.action::text in ('view','view_valuation','view_insurance','export','print')
+on conflict do nothing;
+
+-- Weighment entry and verification, deliberately separated (INV-24).
+insert into role_permissions (role_id, permission_id)
+select r.id, p.id from roles r, permissions p
+ where r.code = 'WEIGH_ENTRY'
+   and (p.module, p.action::text) in
+       (('weighment','view'),('weighment','create'),('weighment','edit_draft'),
+        ('weighment','submit'),('parties','view'),('locations','view'),('masters','view'))
+on conflict do nothing;
+
+insert into role_permissions (role_id, permission_id)
+select r.id, p.id from roles r, permissions p
+ where r.code = 'WEIGH_VERIFY'
+   and (p.module, p.action::text) in
+       (('weighment','view'),('weighment','verify'),('governance','view_audit'))
+on conflict do nothing;
+
+insert into role_permissions (role_id, permission_id)
+select r.id, p.id from roles r, permissions p
+ where r.code = 'GATE_OPERATOR'
+   and (p.module, p.action::text) in
+       (('weighment','view'),('weighment','create'),('parties','view'))
+on conflict do nothing;
+
+-- Warehouse operations.
+insert into role_permissions (role_id, permission_id)
+select r.id, p.id from roles r, permissions p
+ where r.code = 'WH_OPERATOR'
+   and (p.module, p.action::text) in
+       (('stock','view'),('inward','view'),('inward','create'),
+        ('identification','view'),('identification','allocate'),
+        ('transfer','view'),('transfer','create'),('transfer','transfer'),
+        ('locations','view'),('parties','view'),('masters','view'),('weighment','view'))
+on conflict do nothing;
+
+insert into role_permissions (role_id, permission_id)
+select r.id, p.id from roles r, permissions p
+ where r.code = 'WH_SUPERVISOR'
+   and (p.module, p.action::text) in
+       (('stock','view'),('inward','view'),('inward','create'),
+        ('identification','view'),('identification','allocate'),('identification','reclassify'),
+        ('transfer','view'),('transfer','create'),('transfer','transfer'),
+        ('verification','view'),('verification','create'),
+        ('locations','view'),('parties','view'),('masters','view'),
+        ('weighment','view'),('governance','view_audit'))
+on conflict do nothing;
+
+insert into role_permissions (role_id, permission_id)
+select r.id, p.id from roles r, permissions p
+ where r.code = 'WH_MANAGER'
+   and (p.module, p.action::text) in
+       (('stock','view'),('inward','view'),('inward','approve'),
+        ('identification','view'),('identification','approve'),
+        ('transfer','view'),('transfer','approve'),
+        ('outward','view'),('outward','approve'),
+        ('quality','view'),('quality','approve'),
+        ('verification','view'),('verification','approve'),
+        ('weighment','view'),('locations','view'),('parties','view'),('masters','view'),
+        ('reports','view'),('reports','export'),('governance','view_audit'))
+on conflict do nothing;
+
+-- Stock accountant owns the ledger.
+insert into role_permissions (role_id, permission_id)
+select r.id, p.id from roles r, permissions p
+ where r.code = 'STOCK_ACCT'
+   and (p.module, p.action::text) in
+       (('stock','view'),('stock','view_valuation'),('stock','adjust'),('stock','close'),
+        ('identification','view'),('identification','approve'),
+        ('weighment','view'),('weighment','reverse'),
+        ('inward','view'),('transfer','view'),('outward','view'),
+        ('verification','view'),
+        ('reports','view'),('reports','export'),('governance','view_audit'))
+on conflict do nothing;
+
+insert into role_permissions (role_id, permission_id)
+select r.id, p.id from roles r, permissions p
+ where r.code = 'DISPATCH_EXEC'
+   and (p.module, p.action::text) in
+       (('outward','view'),('outward','create'),('stock','view'),
+        ('weighment','view'),('weighment','create'),('parties','view'))
+on conflict do nothing;
+
+-- Quality and fumigation.
+insert into role_permissions (role_id, permission_id)
+select r.id, p.id from roles r, permissions p
+ where r.code = 'QUALITY_INSP'
+   and (p.module, p.action::text) in
+       (('quality','view'),('quality','create'),('stock','view'),
+        ('identification','view'),('identification','reclassify'),('masters','view'))
+on conflict do nothing;
+
+insert into role_permissions (role_id, permission_id)
+select r.id, p.id from roles r, permissions p
+ where r.code = 'FUMIG_OP'
+   and (p.module, p.action::text) in
+       (('fumigation','view'),('fumigation','create'),('stock','view'),('locations','view'))
+on conflict do nothing;
+
+insert into role_permissions (role_id, permission_id)
+select r.id, p.id from roles r, permissions p
+ where r.code = 'FUMIG_APPROVER'
+   and (p.module, p.action::text) in
+       (('fumigation','view'),('fumigation','approve'),('stock','view'),
+        ('governance','override'),('governance','view_audit'))
+on conflict do nothing;
+
+-- Verification and discrepancy. PV team can never adjust the ledger (INV-13).
+insert into role_permissions (role_id, permission_id)
+select r.id, p.id from roles r, permissions p
+ where r.code = 'PV_TEAM'
+   and (p.module, p.action::text) in
+       (('verification','view'),('verification','create'),('stock','view'),('locations','view'))
+on conflict do nothing;
+
+insert into role_permissions (role_id, permission_id)
+select r.id, p.id from roles r, permissions p
+ where r.code = 'DISCREP_REVIEW'
+   and (p.module, p.action::text) in
+       (('verification','view'),('stock','view'),('stock','adjust'),
+        ('reports','view'),('governance','view_audit'))
+on conflict do nothing;
+
+-- Insurance. Read-only on stock (INV-21).
+insert into role_permissions (role_id, permission_id)
+select r.id, p.id from roles r, permissions p
+ where r.code = 'INS_MANAGER'
+   and (p.module, p.action::text) in
+       (('insurance','view_insurance'),('insurance','edit_insurance'),
+        ('stock','view'),('stock','view_valuation'),
+        ('reports','view'),('reports','export'),('governance','view_audit'))
+on conflict do nothing;
+
+insert into role_permissions (role_id, permission_id)
+select r.id, p.id from roles r, permissions p
+ where r.code = 'INS_VIEWER'
+   and (p.module, p.action::text) in
+       (('insurance','view_insurance'),('stock','view'),('reports','view'))
+on conflict do nothing;
+
+-- Business administrator: broad approval and configuration, plus override.
+insert into role_permissions (role_id, permission_id)
+select r.id, p.id from roles r, permissions p
+ where r.code = 'BUS_ADMIN'
+   and p.action::text in
+       ('view','create','manage_master','approve','view_valuation','view_insurance',
+        'edit_insurance','view_audit','export','print','override','reopen','close')
+on conflict do nothing;
+
+-- Super administrator: technical administration and masters.
+-- Deliberately WITHOUT governance.override — commercial override is separate
+-- and must be granted explicitly (DR-50).
+insert into role_permissions (role_id, permission_id)
+select r.id, p.id from roles r, permissions p
+ where r.code = 'SUPER_ADMIN'
+   and (p.action::text in ('view','create','manage_master','manage_user','view_audit','export','print'))
+on conflict do nothing;
+
+-- ---------------------------------------------------------------------------
+-- Example assignments
+--
+-- Reproduces the blueprint's own §5.1 example: Ramesh holds three roles at
+-- three different scopes.
+-- ---------------------------------------------------------------------------
+insert into user_roles (user_id, role_id, location_node_id, notes, created_by)
+select u.id, r.id, n.id, v.notes, cr.id
+from (values
+  ('EMP001','WH_SUPERVISOR','ALY-G1', 'Blueprint §5.1 example — supervises Godown 1 only'),
+  ('EMP001','FUMIG_APPROVER','ALY',   'Blueprint §5.1 example — approves fumigation facility-wide'),
+  ('EMP001','READ_ONLY',    null,     'Blueprint §5.1 example — views stock everywhere'),
+  ('EMP002','STOCK_ACCT',   null,     'Owns the ledger across the business'),
+  ('EMP003','WEIGH_ENTRY',  'ALY',    'Enters weighments at Aliyabad'),
+  ('EMP004','WH_MANAGER',   'MUR',    'Runs the Murud facility')
+) as v(user_code, role_code, node_code, notes)
+join users u on u.code = v.user_code
+join roles r on r.code = v.role_code
+left join location_nodes n on n.code = v.node_code
+cross join (select id from users where code = 'EMP001') cr
+on conflict do nothing;
+
+-- EMP003 enters weighments; EMP002 verifies them. Separating the two is what
+-- makes maker-checker meaningful (INV-24).
+insert into user_roles (user_id, role_id, location_node_id, notes, created_by)
+select u.id, r.id, n.id, 'Verifies weighments entered by others', cr.id
+from users u, roles r, location_nodes n, (select id from users where code='EMP001') cr
+ where u.code = 'EMP002' and r.code = 'WEIGH_VERIFY' and n.code = 'ALY'
+on conflict do nothing;
+
+commit;
+
+-- ===========================================================================
+-- Weighment slips (migration 0006)
+--
+-- A realistic mix: exact matches, a small within-tolerance difference, one
+-- beyond tolerance with a reason, an outward dispatch, and a slip whose
+-- commodity is not yet known — which is legitimate at inward (blueprint §2.4).
+-- ===========================================================================
+
+begin;
+
+insert into weighment_slips (
+  slip_no, external_slip_no, weighbridge_id, weighment_date,
+  vehicle_id, driver_id, party_id, source_category, commodity_id, variety_id,
+  direction, gross_weight_kg, tare_weight_kg, printed_net_weight_kg,
+  bag_count, invoice_no, status, entry_user_id, created_by, updated_by
+)
+select
+  v.slip_no, v.ext, wb.id, current_date - (v.days_ago || ' days')::interval,
+  veh.id, drv.id, pty.id, v.source::source_category, com.id, var.id,
+  v.direction::movement_direction, v.gross, v.tare, v.printed,
+  v.bags, v.invoice, v.status::weighment_status, eu.id, eu.id, eu.id
+from (values
+  ('IN-202607-0001','KP-4471','WB-ALY-1', 6,'MH24AB1234','D001','P0001','farmer',
+   'TUR','LEMON','inward', 24500.000,  9800.000, 14700.000, 294, null,'verified','EMP003'),
+  ('IN-202607-0002','KP-4472','WB-ALY-1', 6,'MH24AB5678','D002','P0004','trader',
+   'CHANA','DESI','inward', 18250.000,  8900.000,  9350.000, 187,'INV/26-27/0412','verified','EMP003'),
+  -- Small difference, within the 0.5% tolerance: no reason needed.
+  ('IN-202607-0003','KP-4489','WB-ALY-1', 4,'MH24CD9012','D003','P0003','farmer',
+   'TUR','RED','inward', 31200.000, 12400.000, 18760.000, 376, null,'verified','EMP003'),
+  -- Commodity not yet established. Entirely legitimate at inward.
+  ('IN-202607-0004','KP-4501','WB-ALY-1', 3,'MH24GH7890',null,'P0002','farmer',
+   null,null,'inward',  8600.000,  3100.000,  5500.000, 110, null,'awaiting_verification','EMP003'),
+  -- Difference beyond tolerance. Carries a reason.
+  ('IN-202607-0005','KP-4515','WB-ALY-1', 2,'MH13EF3456','D004','P0005','trader',
+   'WHEAT','LOKWAN','inward', 27400.000, 11100.000, 16150.000, 163,'INV/26-27/0455','awaiting_verification','EMP003'),
+  ('IN-202607-0006','KP-4530','WB-ALY-1', 1,'MH24AB1234','D001','P0008','auction',
+   'MOONG','GREEN','inward', 15800.000,  9750.000,  6050.000, 121, null,'draft','EMP003'),
+  ('OUT-202607-0001','KP-4533','WB-ALY-1',1,'MH12IJ2345','D002','P0006','processor',
+   'CHANA','DESI','outward', 29100.000, 13200.000, 15900.000, 318,'SI/26-27/0088','draft','EMP003')
+) as v(slip_no, ext, wb_code, days_ago, veh_reg, drv_code, party_code, source,
+       com_code, var_code, direction, gross, tare, printed, bags, invoice, status, user_code)
+left join weighbridges wb on wb.code = v.wb_code
+left join vehicles veh    on veh.registration_number = v.veh_reg
+left join drivers drv     on drv.code = v.drv_code
+left join parties pty     on pty.code = v.party_code
+left join commodities com on com.code = v.com_code
+left join varieties var   on var.commodity_id = com.id and var.code = v.var_code
+left join users eu        on eu.code = v.user_code
+on conflict (slip_no) do nothing;
+
+-- The beyond-tolerance slip carries a reason (DR-03).
+update weighment_slips
+   set difference_reason_id = (select id from reason_codes where code = 'WEIGH_DIFF'),
+       difference_remarks   = 'Weighbridge re-check requested; operator recorded both readings.'
+ where slip_no = 'IN-202607-0005';
+
+-- Verification is by someone other than the person who entered it (INV-24).
+update weighment_slips
+   set verified_by_id = (select id from users where code = 'EMP002'),
+       verified_at    = now()
+ where status = 'verified';
+
+commit;

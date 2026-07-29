@@ -10,6 +10,8 @@ Record of AI agent sessions: what was attempted, what was delivered, and what wa
 
 | 2026-07-29 | Claude Code (Opus) | Continue Phase 3 with the remaining unblocked masters | Delivered party, employee, transport and reason-code masters: 2 migrations, seed of 15 parties / 7 employees / 6 vehicles / 53 reason codes, three new screens, 79 automated checks passing. A database test caught a real gap in the party-type rule, fixed with a second constraint trigger. Still no authentication |
 
+| 2026-07-29 | Claude Code (Opus) | Weighment entry, plus the role matrix and users (authentication deferred by the business) | Delivered weighment slip entry with database-generated net weights, tolerance handling, duplicate detection and the status lifecycle; and roles, permissions and scoped assignments with an administration screen. 123 automated checks passing. Two real defects found and fixed during the build: a vanishing save confirmation, and date columns crashing React |
+
 ## Recording rule
 
 One row per substantial session. State what was actually delivered and what was
