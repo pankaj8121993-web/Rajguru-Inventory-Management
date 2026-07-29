@@ -17,9 +17,9 @@ const base = {
   weighment_date: '2026-07-29',
   first_weighment_at: '',
   second_weighment_at: '',
-  vehicle_id: '',
+  vehicle_number: '',
   trailer_number: '',
-  driver_id: '',
+  driver_name: '',
   transporter_party_id: '',
   party_id: '',
   source_category: '',
@@ -76,6 +76,20 @@ describe('weighment input', () => {
 
   it('rejects a fractional bag count', () => {
     expect(weighmentInputSchema.safeParse({ ...base, bag_count: '294.5' }).success).toBe(false);
+  });
+
+  it('normalises a vehicle number typed with spaces or dashes', () => {
+    // No vehicle master exists: the number is typed as it appears on the slip.
+    for (const input of ['mh 24 ab 1234', 'MH24AB1234', 'mh-24-ab-1234']) {
+      expect(weighmentInputSchema.parse({ ...base, vehicle_number: input }).vehicle_number)
+        .toBe('MH24AB1234');
+    }
+  });
+
+  it('accepts a non-standard vehicle number rather than blocking the slip', () => {
+    // An unreadable or out-of-state number on the paper must still be recordable.
+    expect(weighmentInputSchema.safeParse({ ...base, vehicle_number: 'TN09BH2345XX' }).success)
+      .toBe(true);
   });
 
   it('rejects an invalid direction', () => {

@@ -7,7 +7,7 @@ as SQL **is not done** (AGENTS.md §4, development prompt §4).
 
 ## Status
 
-Seven migrations exist, covering master data, weighment and access control. **No Supabase project is
+Nine migrations exist, covering master data, weighment, access control and the stock ledger. **No Supabase project is
 provisioned**, so "dev" below means the local PostgreSQL 16 instance used during
 development, not a hosted environment.
 
@@ -19,6 +19,8 @@ development, not a hosted environment.
 | 0004 | `0004_parties_and_transport.sql` | `party_types`, `parties` with GSTIN/PAN/IFSC/mobile/pincode format checks and partial unique indexes, `party_party_types` many-to-many with two deferred constraint triggers enforcing "at least one type", `employees`, `vehicles`, `drivers`, `weighbridges`, RLS | 3 | Yes | No | No | Yes |
 | 0005 | `0005_reason_codes.sql` | `reason_code_categories`, `reason_codes` with evidence/approval/exception flags, `document_types`, RLS | 3 | Yes | No | No | Yes |
 | 0006 | `0006_weighment.sql` | `system_settings` (tolerances as configuration), `weighment_slips` with **generated** calculated-net and net-difference columns, posted-record and maker-checker guards, `duplicate_reviews`, `find_duplicate_weighments()`, RLS | 4 | Yes | No | No | Yes |
+| 0008 | `0008_stock_ledger.sql` | `receipt_batches`, `lots`, `inventory_segments`, `stock_transactions`, append-only `stock_ledger`, `stock_balance_projections` with the non-negative CHECK, and `post_stock_transaction()` — the only write path, taking a row lock before any balance check | 5, 6 | Yes | No | No | Yes |
+| 0009 | `0009_vehicle_as_free_text.sql` | Folds vehicle and driver into typed columns on the weighment slip and drops both masters; rebuilds duplicate detection against the typed vehicle number. **Not reversible** | 4 | Yes | No | No | **No** |
 | 0007 | `0007_roles_and_users.sql` | `roles`, `permissions`, `role_permissions`, scoped `user_roles`, `user_effective_permissions()`, `user_has_permission()` with hierarchy inheritance, RLS | 3 | Yes | No | No | Yes |
 
 `supabase/seed.sql` seeds realistic development data. It is idempotent and is **not**

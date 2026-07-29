@@ -24,10 +24,8 @@ export interface WeighmentSlip {
   weighbridge_id: string | null;
   weighbridge_name: string | null;
   weighment_date: string;
-  vehicle_id: string | null;
-  vehicle_registration: string | null;
+  vehicle_number: string | null;
   trailer_number: string | null;
-  driver_id: string | null;
   driver_name: string | null;
   transporter_party_id: string | null;
   party_id: string | null;
@@ -79,8 +77,6 @@ const SELECT_SLIP = `
          s.second_weighment_at::text as second_weighment_at,
          s.verified_at::text as verified_at,
          wb.name as weighbridge_name,
-         v.registration_number as vehicle_registration,
-         d.full_name as driver_name,
          p.legal_name as party_name,
          c.name as commodity_name,
          vr.name as variety_name,
@@ -91,8 +87,6 @@ const SELECT_SLIP = `
            where dr.slip_id = s.id and dr.outcome is null) as open_duplicates
     from weighment_slips s
     left join weighbridges wb on wb.id = s.weighbridge_id
-    left join vehicles v      on v.id  = s.vehicle_id
-    left join drivers d       on d.id  = s.driver_id
     left join parties p       on p.id  = s.party_id
     left join commodities c   on c.id  = s.commodity_id
     left join varieties vr    on vr.id = s.variety_id
@@ -177,19 +171,27 @@ async function nextSlipNo(
 }
 
 /** Duplicate candidates for a proposed slip (DR-05). Reports; never decides. */
+export interface DuplicateProbe {
+  external_slip_no: string | null;
+  weighbridge_id: string | null;
+  weighment_date: string;
+  vehicle_number: string | null;
+  gross_weight_kg: string | null;
+  tare_weight_kg: string | null;
+  party_id: string | null;
+  commodity_id: string | null;
+  direction: MovementDirection;
+}
+
 export async function findDuplicates(
-  input: Pick<
-    WeighmentInput,
-    | 'external_slip_no' | 'weighbridge_id' | 'weighment_date' | 'vehicle_id'
-    | 'gross_weight_kg' | 'tare_weight_kg' | 'party_id' | 'commodity_id' | 'direction'
-  >,
+  input: DuplicateProbe,
   excludeId?: string,
 ): Promise<DuplicateCandidate[]> {
   return query<DuplicateCandidate>(
     `select * from find_duplicate_weighments($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
     [
       input.external_slip_no, input.weighbridge_id, input.weighment_date,
-      input.vehicle_id, input.gross_weight_kg, input.tare_weight_kg,
+      input.vehicle_number, input.gross_weight_kg, input.tare_weight_kg,
       input.party_id, input.commodity_id, input.direction, excludeId ?? null,
     ],
   );
@@ -207,7 +209,7 @@ export async function createWeighment(
       `insert into weighment_slips
          (slip_no, external_slip_no, weighbridge_id, weighment_date,
           first_weighment_at, second_weighment_at,
-          vehicle_id, trailer_number, driver_id, transporter_party_id,
+          vehicle_number, trailer_number, driver_name, transporter_party_id,
           party_id, source_category, broker_party_id,
           commodity_id, variety_id, direction,
           gross_weight_kg, tare_weight_kg, printed_net_weight_kg, bag_count,
@@ -221,7 +223,7 @@ export async function createWeighment(
       [
         slipNo, input.external_slip_no, input.weighbridge_id, input.weighment_date,
         input.first_weighment_at || null, input.second_weighment_at || null,
-        input.vehicle_id, input.trailer_number, input.driver_id,
+        input.vehicle_number, input.trailer_number, input.driver_name,
         input.transporter_party_id, input.party_id, input.source_category,
         input.broker_party_id, input.commodity_id, input.variety_id, input.direction,
         input.gross_weight_kg, input.tare_weight_kg, input.printed_net_weight_kg,
@@ -238,7 +240,7 @@ export async function createWeighment(
       `select * from find_duplicate_weighments($1,$2,$3,$4,$5,$6,$7,$8,$9::movement_direction,$10)`,
       [
         input.external_slip_no, input.weighbridge_id, input.weighment_date,
-        input.vehicle_id, input.gross_weight_kg, input.tare_weight_kg,
+        input.vehicle_number, input.gross_weight_kg, input.tare_weight_kg,
         input.party_id, input.commodity_id, input.direction, id,
       ],
     );
@@ -284,7 +286,7 @@ export async function updateWeighment(id: string, input: WeighmentInput): Promis
       `update weighment_slips set
          external_slip_no = $2, weighbridge_id = $3, weighment_date = $4,
          first_weighment_at = $5, second_weighment_at = $6,
-         vehicle_id = $7, trailer_number = $8, driver_id = $9,
+         vehicle_number = $7, trailer_number = $8, driver_name = $9,
          transporter_party_id = $10, party_id = $11,
          source_category = $12::source_category, broker_party_id = $13,
          commodity_id = $14, variety_id = $15, direction = $16::movement_direction,
@@ -296,7 +298,7 @@ export async function updateWeighment(id: string, input: WeighmentInput): Promis
       [
         id, input.external_slip_no, input.weighbridge_id, input.weighment_date,
         input.first_weighment_at || null, input.second_weighment_at || null,
-        input.vehicle_id, input.trailer_number, input.driver_id,
+        input.vehicle_number, input.trailer_number, input.driver_name,
         input.transporter_party_id, input.party_id, input.source_category,
         input.broker_party_id, input.commodity_id, input.variety_id, input.direction,
         input.gross_weight_kg, input.tare_weight_kg, input.printed_net_weight_kg,
@@ -425,17 +427,10 @@ export async function listOpenDuplicates(slipId: string): Promise<Array<{
 // --- Pickers -------------------------------------------------------------
 
 export async function weighmentPickers() {
-  const [weighbridges, vehicles, drivers, parties, commodities, varieties, reasons] =
+  const [weighbridges, parties, commodities, varieties, reasons] =
     await Promise.all([
       query<{ id: string; label: string }>(
         `select id, name as label from weighbridges where is_active order by name`,
-      ),
-      query<{ id: string; label: string }>(
-        `select id, registration_number as label from vehicles where is_active
-          order by registration_number`,
-      ),
-      query<{ id: string; label: string }>(
-        `select id, full_name as label from drivers where is_active order by full_name`,
       ),
       query<{ id: string; label: string }>(
         `select id, legal_name || ' (' || code || ')' as label from parties
@@ -455,5 +450,5 @@ export async function weighmentPickers() {
       ),
     ]);
 
-  return { weighbridges, vehicles, drivers, parties, commodities, varieties, reasons };
+  return { weighbridges, parties, commodities, varieties, reasons };
 }

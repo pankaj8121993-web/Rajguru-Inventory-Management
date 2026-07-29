@@ -14,7 +14,6 @@ interface Counts {
   varieties: string;
   grades: string;
   parties: string;
-  vehicles: string;
   employees: string;
   reason_codes: string;
   audit: string;
@@ -47,7 +46,6 @@ export default async function DashboardPage() {
       (select count(*) from varieties   where is_active)::text as varieties,
       (select count(*) from grades      where is_active)::text as grades,
       (select count(*) from parties      where is_active)::text as parties,
-      (select count(*) from vehicles     where is_active)::text as vehicles,
       (select count(*) from employees    where is_active)::text as employees,
       (select count(*) from reason_codes where is_active)::text as reason_codes,
       (select count(*) from audit_events)::text as audit
@@ -76,8 +74,7 @@ export default async function DashboardPage() {
     { label: 'Varieties', value: counts.varieties, href: '/commodities' },
     { label: 'Grades', value: counts.grades, href: '/commodities' },
     { label: 'Parties', value: counts.parties, href: '/parties' },
-    { label: 'Vehicles', value: counts.vehicles, href: '/vehicles' },
-    { label: 'Employees', value: counts.employees, href: '/parties' },
+    { label: 'Employees', value: counts.employees, href: '/administration' },
     { label: 'Reason codes', value: counts.reason_codes, href: '/reason-codes' },
   ];
 

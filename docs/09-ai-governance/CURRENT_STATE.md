@@ -9,8 +9,8 @@ working, it is Not started. If a test is written but failing, it is failing.
 - **Last updated:** 2026-07-29
 - **Current phase:** Phase 3 mostly delivered; Phase 4 weighment entry working
 - **Application code:** Next.js 15 app, running and verified locally
-- **Database:** PostgreSQL 16, 7 migrations, seeded — **local only, no Supabase project**
-- **Tests:** 123 automated checks, all passing
+- **Database:** PostgreSQL 16, 9 migrations, seeded with real posted stock — **local only, no Supabase project**
+- **Tests:** 119 automated checks, all passing
 - **Deployed:** Nowhere
 
 ---
@@ -52,6 +52,12 @@ are complete and exercised end to end through a real browser against a real data
 | Multi-role users | Blueprint §5.1's own example reproduced: Ramesh holds three roles at three scopes |
 | Override separation | Super Administrator holds **no** commercial override permission (DR-50) |
 | Audit trail viewer | Administration screen lists recent events |
+| **Stock ledger** | Append-only, with the posting function as its only write path. Update and delete are blocked by trigger (INV-02) |
+| Negative stock impossible | Verified live: dispatching 99,999 kg from a 14,700 kg segment is refused under row lock (INV-01) |
+| Segment anchors the ledger | `inventory_segment_id` is `NOT NULL`; `lot_id` is nullable (INV-03, INV-04) |
+| Provisional stock is real | A seeded segment holds 18,800 kg of Tur with **no lot**, placed only to godown level — and it is fully tracked |
+| Conservation enforced | Transfers, splits, merges and identifications must net to zero or the posting is refused |
+| Vehicle and driver are typed fields | No master to maintain — a truck arriving for the first time is recordable immediately |
 | Mobile layout | Verified at 390px |
 
 ## What exists but is not yet real
@@ -98,6 +104,8 @@ Legend: **Not started** · **In progress** · **Built, untested** · **Tested** 
 | Approvals and override framework | 3 | Not started |
 | Weighment — single entry | 4 | **Verified running** |
 | Weighment — bulk grid and import | 4 | Not started |
+| Receipt batches, inventory segments, lots | 5, 6 | **Schema and posting function working; no UI yet** |
+| Stock ledger and balances | 6 | **Schema and posting function working; no UI yet** |
 | Provisional stock and identification | 5 | Not started |
 | Inward, lot and ledger | 6 | Not started |
 | Transfer and outward | 7 | Not started |
@@ -116,14 +124,19 @@ Legend: **Not started** · **In progress** · **Built, untested** · **Tested** 
 |---|---|
 | ESLint | Clean |
 | TypeScript strict | Clean |
-| Vitest — validation and arithmetic | 56 passing |
-| Database, constraints, RLS, access control | 37 assertions passing |
-| Playwright end-to-end | 30 passing |
+| Vitest — validation and arithmetic | 52 passing |
+| Database, constraints, RLS, access control, ledger | 40 assertions passing |
+| Playwright end-to-end | 27 passing |
 
-**0 of 25 invariants have a direct test.** All 25 concern the stock ledger, which does not
-exist yet. Two forward guards are already enforced in CI: `stock_ledger.lot_id` must be
-nullable if that table ever appears (INV-04), and no floating-point column may exist
-anywhere in the schema (NFR-01).
+**4 of 25 invariants now have a direct test:** INV-01 (negative stock impossible),
+INV-02 (ledger immutable), INV-03 (segment required), INV-04 (lot nullable). The remaining
+21 need the workflows that carry them — transfer, split, merge, reservation, verification,
+insurance — which are not built.
+
+**Concurrency tests do not exist yet.** The posting function takes a row lock before
+checking the balance, which is the correct design, but nothing yet proves it under genuine
+parallel transactions. That is a hard gate before this ledger can be trusted in production
+and is the first thing to write when work resumes.
 
 ---
 
@@ -179,14 +192,10 @@ npm run dev               # http://localhost:3000
 
 ## Next task
 
-**Bulk weighment entry (Phase 4, FR-02).** The spreadsheet grid with paste from Excel,
-CSV and Excel import, row-level validation, common-value application, row duplication,
-partial posting and an error export.
+Paused for user review. Three things are queued, in order:
 
-This is the single highest-value screen in the product. If bulk entry is slower than the
-spreadsheet it replaces, staff will keep using the spreadsheet and the platform will never
-become the source of truth. Single-slip entry works; volume entry is what makes it usable
-on a busy inward day.
-
-After that, Phase 5 — receipt batches and inventory segments — which is where provisional
-stock and "no false accuracy" become real.
+1. **Concurrency tests on the posting path.** The ledger cannot be trusted without them.
+2. **Inward UI** — turning verified weighment slips into receipt batches and segments,
+   including the day-wise consolidated inward the business asked for.
+3. **Stock enquiry and the provisional stock register** — so the posted stock is visible
+   and traceable back to the slip it came from.

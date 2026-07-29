@@ -102,14 +102,6 @@ rejects "a duplicate GSTIN is rejected" \
    select 'TEST-P5','Dup GSTIN',gstin from parties where gstin is not null limit 1"
 
 echo
-echo "Vehicle rules"
-rejects "a malformed registration number is rejected" \
-  "insert into vehicles (registration_number) values ('NOTAREG')"
-
-rejects "a negative vehicle capacity is rejected" \
-  "insert into vehicles (registration_number,capacity_mt) values ('MH99ZZ9999',-1)"
-
-echo
 echo "Employee rules"
 rejects "an employee cannot report to themselves" \
   "update employees set reporting_manager_id = id where code = (select code from employees limit 1)"
@@ -149,6 +141,28 @@ rejects "the entry user cannot also be the verifier (INV-24)" \
 rejects "a duplicate slip number is rejected" \
   "insert into weighment_slips (slip_no,weighment_date,direction,gross_weight_kg,tare_weight_kg)
    select slip_no,current_date,'inward',2000,1000 from weighment_slips limit 1"
+
+echo
+echo "Stock ledger invariants"
+equals "stock_ledger.lot_id is nullable — INV-04, permanently" \
+  "select is_nullable from information_schema.columns
+    where table_name='stock_ledger' and column_name='lot_id'" "YES"
+
+equals "stock_ledger.inventory_segment_id is NOT NULL — INV-03" \
+  "select is_nullable from information_schema.columns
+    where table_name='stock_ledger' and column_name='inventory_segment_id'" "NO"
+
+equals "a negative balance is impossible — INV-01" \
+  "select count(*) from information_schema.constraint_column_usage ccu
+     join information_schema.check_constraints cc on cc.constraint_name = ccu.constraint_name
+    where ccu.table_name='stock_balance_projections'
+      and cc.check_clause like '%quantity_kg >= %'" "1"
+
+rejects "the stock ledger cannot be updated — INV-02" \
+  "update stock_ledger set quantity_kg = 1"
+
+rejects "the stock ledger cannot be deleted from — INV-02" \
+  "delete from stock_ledger"
 
 echo
 echo "Access control rules"

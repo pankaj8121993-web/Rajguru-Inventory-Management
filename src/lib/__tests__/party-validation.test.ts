@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  partyInputSchema,
-  vehicleInputSchema,
-  reasonCodeInputSchema,
-} from '../validation/party';
+import { partyInputSchema, reasonCodeInputSchema } from '../validation/party';
 
 /**
  * Party, vehicle and reason-code validation.
@@ -114,61 +110,6 @@ describe('party input', () => {
   it('leaves unstated credit terms null, not zero', () => {
     // "No credit terms agreed" and "zero days credit" are different facts.
     expect(partyInputSchema.parse(baseParty).credit_terms_days).toBeNull();
-  });
-});
-
-const baseVehicle = {
-  registration_number: 'MH24AB1234',
-  vehicle_type: '',
-  transporter_party_id: '',
-  capacity_mt: '',
-  trailer_number: '',
-  insurance_valid_to: '',
-  pollution_valid_to: '',
-  fitness_valid_to: '',
-  permit_valid_to: '',
-  notes: '',
-};
-
-describe('vehicle input', () => {
-  it('normalises a registration written with spaces or dashes', () => {
-    for (const input of ['MH 24 AB 1234', 'mh-24-ab-1234', 'mh24ab1234']) {
-      expect(vehicleInputSchema.parse({ ...baseVehicle, registration_number: input })
-        .registration_number).toBe('MH24AB1234');
-    }
-  });
-
-  it('accepts the shorter district-code format', () => {
-    expect(vehicleInputSchema.safeParse({ ...baseVehicle, registration_number: 'MH1AB1234' })
-      .success).toBe(true);
-  });
-
-  it('rejects a malformed registration', () => {
-    for (const bad of ['1234', 'MHABCD', 'M24AB1234', 'MH24AB12']) {
-      expect(vehicleInputSchema.safeParse({ ...baseVehicle, registration_number: bad })
-        .success).toBe(false);
-    }
-  });
-
-  it('accepts a vehicle with no documents recorded', () => {
-    const result = vehicleInputSchema.parse(baseVehicle);
-    expect(result.insurance_valid_to).toBeNull();
-    expect(result.capacity_mt).toBeNull();
-  });
-
-  it('accepts an already-expired document date', () => {
-    // Expiry is a warning, never a block — a vehicle at the gate with a lapsed
-    // certificate must still be recordable.
-    const result = vehicleInputSchema.safeParse({
-      ...baseVehicle,
-      insurance_valid_to: '2020-01-01',
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it('rejects a negative capacity', () => {
-    expect(vehicleInputSchema.safeParse({ ...baseVehicle, capacity_mt: '-1' }).success)
-      .toBe(false);
   });
 });
 

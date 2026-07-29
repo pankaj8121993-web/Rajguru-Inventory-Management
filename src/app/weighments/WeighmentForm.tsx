@@ -13,8 +13,6 @@ interface VarietyOption extends Option { commodity_id: string }
 
 export interface Pickers {
   weighbridges: Option[];
-  vehicles: Option[];
-  drivers: Option[];
   parties: Option[];
   commodities: Option[];
   varieties: VarietyOption[];
@@ -219,13 +217,12 @@ export default function WeighmentForm({
       <fieldset className="grid gap-4 sm:grid-cols-4">
         <legend className="label mb-2">Vehicle</legend>
         <div>
-          <label className="label" htmlFor="w_vehicle">Vehicle</label>
-          <select id="w_vehicle" name="vehicle_id" className="field">
-            <option value="">— Select —</option>
-            {pickers.vehicles.map((o) => (
-              <option key={o.id} value={o.id}>{o.label}</option>
-            ))}
-          </select>
+          <label className="label" htmlFor="w_vehicle">Vehicle number</label>
+          <input id="w_vehicle" name="vehicle_number" className="field font-mono uppercase"
+                 placeholder="MH24AB1234" aria-invalid={!!err.vehicle_number} />
+          {err.vehicle_number
+            ? <Err message={err.vehicle_number} testId="error-vehicle" />
+            : <p className="hint">Typed as it appears on the slip.</p>}
         </div>
         <div>
           <label className="label" htmlFor="w_trailer">Trailer</label>
@@ -233,12 +230,8 @@ export default function WeighmentForm({
         </div>
         <div>
           <label className="label" htmlFor="w_driver">Driver</label>
-          <select id="w_driver" name="driver_id" className="field">
-            <option value="">— Select —</option>
-            {pickers.drivers.map((o) => (
-              <option key={o.id} value={o.id}>{o.label}</option>
-            ))}
-          </select>
+          <input id="w_driver" name="driver_name" className="field"
+                 placeholder="Name on the slip" />
         </div>
         <div>
           <label className="label" htmlFor="w_bags">Bags</label>

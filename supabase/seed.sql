@@ -375,51 +375,7 @@ update employees set reporting_manager_id = (select id from employees where code
 update employees set reporting_manager_id = (select id from employees where code = 'E004')
  where code = 'E007' and reporting_manager_id is null;
 
--- ---------------------------------------------------------------------------
--- Vehicles
--- ---------------------------------------------------------------------------
--- Document validity is stored relative to the seed date so the data stays
--- meaningful whenever it is loaded, and deliberately includes one vehicle with
--- an expired certificate and one expiring shortly. An expired document is a
--- real situation the system must display rather than hide.
-insert into vehicles (registration_number, vehicle_type, transporter_party_id,
-                      capacity_mt, insurance_valid_to, pollution_valid_to,
-                      fitness_valid_to, created_by)
-select v.reg, v.vtype, t.id, v.cap,
-       current_date + (v.ins || ' days')::interval,
-       current_date + (v.pol || ' days')::interval,
-       case when v.fit is null then null
-            else current_date + (v.fit || ' days')::interval end,
-       u.id
-from (values
-  ('MH24AB1234','Truck 10-wheeler','P0010', 16.000,  245,  63,  337),
-  ('MH24AB5678','Truck 6-wheeler', 'P0010',  9.000,  186,  33,  275),
-  ('MH24CD9012','Trailer',         'P0011', 25.000,  155,  94,  214),
-  ('MH13EF3456','Truck 10-wheeler','P0011', 16.000,  306, 124,  398),
-  ('MH24GH7890','Tractor Trolley', null,     6.000,   33,  33, null),
-  -- Lapsed pollution certificate and insurance expiring within the month.
-  ('MH12IJ2345','Truck 12-wheeler','P0010', 21.000,   17, -12,  155)
-) as v(reg, vtype, transporter_code, cap, ins, pol, fit)
-left join parties t on t.code = v.transporter_code
-cross join (select id from users where code = 'EMP001') u
-on conflict (registration_number) do nothing;
 
--- ---------------------------------------------------------------------------
--- Drivers
--- ---------------------------------------------------------------------------
-insert into drivers (code, full_name, licence_number, licence_valid_to,
-                     mobile, transporter_party_id, created_by)
-select v.code, v.name, v.lic, current_date + (v.valid || ' days')::interval,
-       v.mobile, t.id, u.id
-from (values
-  ('D001','Balu Shinde',    'MH2420190001234', 671, '9822033001','P0010'),
-  ('D002','Ramrao Gaikwad', 'MH2420180005678', 489, '9822033002','P0010'),
-  ('D003','Imran Shaikh',   'MH1320200009012', 944, '9822033003','P0011'),
-  ('D004','Santosh Bhosale','MH2420170003456',  63, '9822033004','P0011')
-) as v(code, name, lic, valid, mobile, transporter_code)
-left join parties t on t.code = v.transporter_code
-cross join (select id from users where code = 'EMP001') u
-on conflict (code) do nothing;
 
 -- ---------------------------------------------------------------------------
 -- Weighbridges
@@ -877,38 +833,36 @@ begin;
 
 insert into weighment_slips (
   slip_no, external_slip_no, weighbridge_id, weighment_date,
-  vehicle_id, driver_id, party_id, source_category, commodity_id, variety_id,
+  vehicle_number, driver_name, party_id, source_category, commodity_id, variety_id,
   direction, gross_weight_kg, tare_weight_kg, printed_net_weight_kg,
   bag_count, invoice_no, status, entry_user_id, created_by, updated_by
 )
 select
   v.slip_no, v.ext, wb.id, current_date - (v.days_ago || ' days')::interval,
-  veh.id, drv.id, pty.id, v.source::source_category, com.id, var.id,
+  v.veh_reg, v.drv_name, pty.id, v.source::source_category, com.id, var.id,
   v.direction::movement_direction, v.gross, v.tare, v.printed,
   v.bags, v.invoice, v.status::weighment_status, eu.id, eu.id, eu.id
 from (values
-  ('IN-202607-0001','KP-4471','WB-ALY-1', 6,'MH24AB1234','D001','P0001','farmer',
+  ('IN-202607-0001','KP-4471','WB-ALY-1', 6,'MH24AB1234','Balu Shinde','P0001','farmer',
    'TUR','LEMON','inward', 24500.000,  9800.000, 14700.000, 294, null,'verified','EMP003'),
-  ('IN-202607-0002','KP-4472','WB-ALY-1', 6,'MH24AB5678','D002','P0004','trader',
+  ('IN-202607-0002','KP-4472','WB-ALY-1', 6,'MH24AB5678','Ramrao Gaikwad','P0004','trader',
    'CHANA','DESI','inward', 18250.000,  8900.000,  9350.000, 187,'INV/26-27/0412','verified','EMP003'),
   -- Small difference, within the 0.5% tolerance: no reason needed.
-  ('IN-202607-0003','KP-4489','WB-ALY-1', 4,'MH24CD9012','D003','P0003','farmer',
+  ('IN-202607-0003','KP-4489','WB-ALY-1', 4,'MH24CD9012','Imran Shaikh','P0003','farmer',
    'TUR','RED','inward', 31200.000, 12400.000, 18760.000, 376, null,'verified','EMP003'),
   -- Commodity not yet established. Entirely legitimate at inward.
   ('IN-202607-0004','KP-4501','WB-ALY-1', 3,'MH24GH7890',null,'P0002','farmer',
    null,null,'inward',  8600.000,  3100.000,  5500.000, 110, null,'awaiting_verification','EMP003'),
   -- Difference beyond tolerance. Carries a reason.
-  ('IN-202607-0005','KP-4515','WB-ALY-1', 2,'MH13EF3456','D004','P0005','trader',
+  ('IN-202607-0005','KP-4515','WB-ALY-1', 2,'MH13EF3456','Santosh Bhosale','P0005','trader',
    'WHEAT','LOKWAN','inward', 27400.000, 11100.000, 16150.000, 163,'INV/26-27/0455','awaiting_verification','EMP003'),
-  ('IN-202607-0006','KP-4530','WB-ALY-1', 1,'MH24AB1234','D001','P0008','auction',
+  ('IN-202607-0006','KP-4530','WB-ALY-1', 1,'MH24AB1234','Balu Shinde','P0008','auction',
    'MOONG','GREEN','inward', 15800.000,  9750.000,  6050.000, 121, null,'draft','EMP003'),
-  ('OUT-202607-0001','KP-4533','WB-ALY-1',1,'MH12IJ2345','D002','P0006','processor',
+  ('OUT-202607-0001','KP-4533','WB-ALY-1',1,'MH12IJ2345','Ramrao Gaikwad','P0006','processor',
    'CHANA','DESI','outward', 29100.000, 13200.000, 15900.000, 318,'SI/26-27/0088','draft','EMP003')
-) as v(slip_no, ext, wb_code, days_ago, veh_reg, drv_code, party_code, source,
+) as v(slip_no, ext, wb_code, days_ago, veh_reg, drv_name, party_code, source,
        com_code, var_code, direction, gross, tare, printed, bags, invoice, status, user_code)
 left join weighbridges wb on wb.code = v.wb_code
-left join vehicles veh    on veh.registration_number = v.veh_reg
-left join drivers drv     on drv.code = v.drv_code
 left join parties pty     on pty.code = v.party_code
 left join commodities com on com.code = v.com_code
 left join varieties var   on var.commodity_id = com.id and var.code = v.var_code
@@ -926,5 +880,104 @@ update weighment_slips
    set verified_by_id = (select id from users where code = 'EMP002'),
        verified_at    = now()
  where status = 'verified';
+
+commit;
+
+-- ===========================================================================
+-- Opening stock (migration 0008)
+--
+-- Posted through post_stock_transaction() — the same path the application
+-- uses. Nothing writes to stock_ledger directly, including this seed.
+--
+-- Deliberately mixed: two segments with a final lot, one provisional batch
+-- whose lot is not yet decided, and one recorded only to godown level. That
+-- mix is the point of the product (blueprint §2.4).
+-- ===========================================================================
+
+begin;
+
+insert into receipt_batches (batch_no, batch_basis, receipt_date, facility_id,
+                             party_id, source_category, created_by)
+select v.no, v.basis, current_date - (v.days || ' days')::interval, f.id, p.id,
+       v.src::source_category, u.id
+from (values
+  ('RB-202607-0001','vehicle', 6,'ALY','P0001','farmer'),
+  ('RB-202607-0002','vehicle', 6,'ALY','P0004','trader'),
+  ('RB-202607-0003','day',     4,'ALY','P0003','farmer')
+) as v(no, basis, days, fac_code, party_code, src)
+join location_nodes f on f.code = v.fac_code and f.node_type='facility'
+join parties p on p.code = v.party_code
+cross join (select id from users where code='EMP001') u
+on conflict (batch_no) do nothing;
+
+insert into lots (lot_no, commodity_id, variety_id, grade_id, crop_year,
+                  owner_type, created_by)
+select v.no, c.id, vr.id, g.id, '2025-26', 'own'::ownership_type, u.id
+from (values
+  ('LOT-TUR-0001','TUR','LEMON','FAQ'),
+  ('LOT-CHANA-0001','CHANA','DESI','FAQ')
+) as v(no, com, var, grd)
+join commodities c on c.code = v.com
+left join varieties vr on vr.commodity_id = c.id and vr.code = v.var
+left join grades g on g.commodity_id = c.id and g.code = v.grd
+cross join (select id from users where code='EMP001') u
+on conflict (lot_no) do nothing;
+
+-- Segments. Note the third: a real provisional batch with no lot at all.
+insert into inventory_segments (
+  segment_no, receipt_batch_id, commodity_id, variety_id,
+  identification_status, identification_confidence, lot_id,
+  location_node_id, location_precision, owner_type, owner_party_id,
+  source_category, created_by
+)
+select v.no, rb.id, c.id, vr.id,
+       v.ident::identification_status, v.conf::identification_confidence, l.id,
+       n.id, v.prec::location_precision, 'own'::ownership_type, p.id,
+       v.src::source_category, u.id
+from (values
+  ('SEG-202607-0001','RB-202607-0001','TUR','LEMON','final_lot','confirmed',
+   'LOT-TUR-0001','ALY-G1-A-S1','stack_bin_or_heap_known','P0001','farmer'),
+  ('SEG-202607-0002','RB-202607-0002','CHANA','DESI','final_lot','confirmed',
+   'LOT-CHANA-0001','ALY-G1-B-S1','stack_bin_or_heap_known','P0004','trader'),
+  -- Provisional: commodity broadly known, lot not yet decided, placed only to
+  -- godown level. Entirely legitimate at inward.
+  ('SEG-202607-0003','RB-202607-0003','TUR',null,'provisional_batch','provisional',
+   null,'ALY-G2','godown_known','P0003','farmer')
+) as v(no, batch, com, var, ident, conf, lot, node, prec, party, src)
+join receipt_batches rb on rb.batch_no = v.batch
+join commodities c on c.code = v.com
+left join varieties vr on vr.commodity_id = c.id and vr.code = v.var
+left join lots l on l.lot_no = v.lot
+join location_nodes n on n.code = v.node
+join parties p on p.code = v.party
+cross join (select id from users where code='EMP001') u
+on conflict (segment_no) do nothing;
+
+-- Post the opening quantities through the real posting function.
+select post_stock_transaction(
+  'inward'::stock_transaction_type,
+  current_date - 6,
+  jsonb_build_array(
+    jsonb_build_object('segment_id', (select id from inventory_segments where segment_no='SEG-202607-0001'),
+                       'quantity_kg', 14700.000, 'bag_count', 294),
+    jsonb_build_object('segment_id', (select id from inventory_segments where segment_no='SEG-202607-0002'),
+                       'quantity_kg', 9350.000, 'bag_count', 187)
+  ),
+  (select id from users where code='EMP001'),
+  (select id from receipt_batches where batch_no='RB-202607-0001'),
+  null, null, 'Opening stock — identified lots'
+) where not exists (select 1 from stock_ledger);
+
+select post_stock_transaction(
+  'inward'::stock_transaction_type,
+  current_date - 4,
+  jsonb_build_array(
+    jsonb_build_object('segment_id', (select id from inventory_segments where segment_no='SEG-202607-0003'),
+                       'quantity_kg', 18800.000, 'bag_count', 376)
+  ),
+  (select id from users where code='EMP001'),
+  (select id from receipt_batches where batch_no='RB-202607-0003'),
+  null, null, 'Opening stock — provisional, lot not yet decided'
+) where (select count(*) from stock_ledger) = 2;
 
 commit;

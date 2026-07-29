@@ -99,42 +99,6 @@ export const partyInputSchema = z.object({
 
 export type PartyInput = z.infer<typeof partyInputSchema>;
 
-const optionalDate = z
-  .string()
-  .trim()
-  .transform((v) => (v === '' ? null : v))
-  .nullable()
-  .refine((v) => v === null || !Number.isNaN(Date.parse(v)), { message: 'Invalid date' });
-
-export const vehicleInputSchema = z.object({
-  registration_number: z
-    .string()
-    .trim()
-    .min(1, 'Registration number is required')
-    .transform((v) => v.toUpperCase().replace(/[\s-]/g, ''))
-    .refine((v) => VEHICLE_PATTERN.test(v), {
-      message: 'Enter a valid registration, e.g. MH24AB1234',
-    }),
-  vehicle_type: optionalText,
-  transporter_party_id: optionalUuid,
-  capacity_mt: z
-    .string()
-    .trim()
-    .transform((v) => (v === '' ? null : v))
-    .nullable()
-    .refine((v) => v === null || (!Number.isNaN(Number(v)) && Number(v) >= 0), {
-      message: 'Capacity must be a number of zero or more',
-    }),
-  trailer_number: optionalText,
-  insurance_valid_to: optionalDate,
-  pollution_valid_to: optionalDate,
-  fitness_valid_to: optionalDate,
-  permit_valid_to: optionalDate,
-  notes: optionalText,
-});
-
-export type VehicleInput = z.infer<typeof vehicleInputSchema>;
-
 export const reasonCodeInputSchema = z.object({
   category_id: z.string().uuid('Select a category'),
   code: z.string().trim().min(1, 'Code is required').max(40),

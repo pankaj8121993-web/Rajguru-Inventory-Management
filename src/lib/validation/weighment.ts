@@ -95,9 +95,19 @@ export const weighmentInputSchema = z
     first_weighment_at: optionalText,
     second_weighment_at: optionalText,
 
-    vehicle_id: optionalUuid,
+    // Typed, not chosen from a master. A truck nobody has seen before arrives
+    // at the gate every day and must be recordable immediately, so this is
+    // deliberately permissive about format.
+    vehicle_number: z
+      .string()
+      .trim()
+      .transform((v) => (v === '' ? null : v.toUpperCase().replace(/[\s-]/g, '')))
+      .nullable()
+      .refine((v) => v === null || (v.length >= 4 && v.length <= 20), {
+        message: 'Enter a vehicle number between 4 and 20 characters',
+      }),
     trailer_number: optionalText,
-    driver_id: optionalUuid,
+    driver_name: optionalText,
     transporter_party_id: optionalUuid,
 
     party_id: optionalUuid,

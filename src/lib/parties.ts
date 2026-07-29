@@ -2,12 +2,12 @@ import 'server-only';
 
 import { query, transaction, writeAudit, currentActor } from './db';
 import {
-  partyInputSchema, vehicleInputSchema, reasonCodeInputSchema,
-  type PartyInput, type VehicleInput, type ReasonCodeInput,
+  partyInputSchema, reasonCodeInputSchema,
+  type PartyInput, type ReasonCodeInput,
 } from './validation/party';
 
-export { partyInputSchema, vehicleInputSchema, reasonCodeInputSchema };
-export type { PartyInput, VehicleInput, ReasonCodeInput };
+export { partyInputSchema, reasonCodeInputSchema };
+export type { PartyInput, ReasonCodeInput };
 
 /**
  * Party, vehicle and reason-code data access.
@@ -51,22 +51,6 @@ export interface Party {
   notes: string | null;
   type_ids: string[];
   type_names: string[];
-}
-
-export interface Vehicle {
-  id: string;
-  registration_number: string;
-  vehicle_type: string | null;
-  transporter_party_id: string | null;
-  transporter_name: string | null;
-  capacity_mt: string | null;
-  trailer_number: string | null;
-  insurance_valid_to: string | null;
-  pollution_valid_to: string | null;
-  fitness_valid_to: string | null;
-  permit_valid_to: string | null;
-  is_active: boolean;
-  notes: string | null;
 }
 
 export interface ReasonCategory {
@@ -309,151 +293,6 @@ export async function setPartyActive(id: string, active: boolean): Promise<void>
       entityTable: 'parties',
       entityId: id,
       entityLabel: `${before.rows[0].code} — ${before.rows[0].legal_name}`,
-      previousValue: { is_active: before.rows[0].is_active },
-      newValue: { is_active: active },
-    });
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Vehicles
-// ---------------------------------------------------------------------------
-
-export async function listVehicles(opts: {
-  includeInactive?: boolean;
-  search?: string;
-} = {}): Promise<Vehicle[]> {
-  const conditions: string[] = [];
-  const params: unknown[] = [];
-
-  if (!opts.includeInactive) conditions.push('v.is_active');
-
-  if (opts.search?.trim()) {
-    params.push(`%${opts.search.trim().replace(/[\s-]/g, '')}%`);
-    conditions.push(`(v.registration_number ilike $${params.length})`);
-  }
-
-  const where = conditions.length ? `where ${conditions.join(' and ')}` : '';
-  return query<Vehicle>(
-    `select v.*,
-            v.insurance_valid_to::text as insurance_valid_to,
-            v.pollution_valid_to::text as pollution_valid_to,
-            v.fitness_valid_to::text   as fitness_valid_to,
-            v.permit_valid_to::text    as permit_valid_to,
-            p.legal_name as transporter_name
-       from vehicles v
-       left join parties p on p.id = v.transporter_party_id
-       ${where}
-      order by v.registration_number`,
-    params,
-  );
-}
-
-export async function listTransporters(): Promise<Array<{ id: string; label: string }>> {
-  const rows = await query<{ id: string; legal_name: string; code: string }>(
-    `select distinct p.id, p.legal_name, p.code
-       from parties p
-       join party_party_types pt on pt.party_id = p.id
-       join party_types t on t.id = pt.party_type_id
-      where p.is_active and t.code = 'TRANSPORTER'
-      order by p.legal_name`,
-  );
-  return rows.map((r) => ({ id: r.id, label: `${r.legal_name} (${r.code})` }));
-}
-
-export async function createVehicle(input: VehicleInput): Promise<string> {
-  const actor = await currentActor();
-
-  return transaction(async (client) => {
-    const result = await client.query<{ id: string }>(
-      `insert into vehicles
-         (registration_number, vehicle_type, transporter_party_id, capacity_mt,
-          trailer_number, insurance_valid_to, pollution_valid_to,
-          fitness_valid_to, permit_valid_to, notes, created_by, updated_by)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$11)
-       returning id`,
-      [
-        input.registration_number, input.vehicle_type, input.transporter_party_id,
-        input.capacity_mt, input.trailer_number, input.insurance_valid_to,
-        input.pollution_valid_to, input.fitness_valid_to, input.permit_valid_to,
-        input.notes, actor.id || null,
-      ],
-    );
-
-    const id = result.rows[0].id;
-    await writeAudit(client, {
-      actorId: actor.id || null,
-      actorLabel: actor.label,
-      action: 'create',
-      entityTable: 'vehicles',
-      entityId: id,
-      entityLabel: input.registration_number,
-      newValue: input,
-    });
-    return id;
-  });
-}
-
-export async function updateVehicle(id: string, input: VehicleInput): Promise<void> {
-  const actor = await currentActor();
-
-  await transaction(async (client) => {
-    const before = await client.query(
-      'select * from vehicles where id = $1 for update',
-      [id],
-    );
-    if (before.rowCount === 0) throw new Error('That vehicle no longer exists.');
-
-    await client.query(
-      `update vehicles set
-         registration_number = $2, vehicle_type = $3, transporter_party_id = $4,
-         capacity_mt = $5, trailer_number = $6, insurance_valid_to = $7,
-         pollution_valid_to = $8, fitness_valid_to = $9, permit_valid_to = $10,
-         notes = $11, updated_by = $12
-       where id = $1`,
-      [
-        id, input.registration_number, input.vehicle_type, input.transporter_party_id,
-        input.capacity_mt, input.trailer_number, input.insurance_valid_to,
-        input.pollution_valid_to, input.fitness_valid_to, input.permit_valid_to,
-        input.notes, actor.id || null,
-      ],
-    );
-
-    await writeAudit(client, {
-      actorId: actor.id || null,
-      actorLabel: actor.label,
-      action: 'update',
-      entityTable: 'vehicles',
-      entityId: id,
-      entityLabel: input.registration_number,
-      previousValue: before.rows[0],
-      newValue: input,
-    });
-  });
-}
-
-export async function setVehicleActive(id: string, active: boolean): Promise<void> {
-  const actor = await currentActor();
-
-  await transaction(async (client) => {
-    const before = await client.query<{ registration_number: string; is_active: boolean }>(
-      'select registration_number, is_active from vehicles where id = $1 for update',
-      [id],
-    );
-    if (before.rowCount === 0) throw new Error('That vehicle no longer exists.');
-
-    await client.query(
-      'update vehicles set is_active = $2, updated_by = $3 where id = $1',
-      [id, active, actor.id || null],
-    );
-
-    await writeAudit(client, {
-      actorId: actor.id || null,
-      actorLabel: actor.label,
-      action: active ? 'reactivate' : 'deactivate',
-      entityTable: 'vehicles',
-      entityId: id,
-      entityLabel: before.rows[0].registration_number,
       previousValue: { is_active: before.rows[0].is_active },
       newValue: { is_active: active },
     });

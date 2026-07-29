@@ -37,6 +37,10 @@ Chronological record of decisions. Architectural decisions get a full ADR in
 | 27 | 2026-07-29 | A scoped permission inherits down the location hierarchy | A permission granted at a facility must reach its godowns, bays and stacks, or every assignment would need enumerating. Implemented as a recursive ancestor walk in `user_has_permission()` | — |
 | 28 | 2026-07-29 | Date columns are cast to text in queries | `pg` returns `date` as a JavaScript `Date`, which React cannot render and which does not match the declared string types. Casting at the query boundary keeps the contract honest | — |
 
+| 29 | 2026-07-29 | **Vehicle and driver are typed fields on the weighment slip, not masters** | Rajguru Foods decision. A truck nobody has seen before arrives at the gate every day; requiring registration first would either block the weighment or push the operator to pick a wrong vehicle from a list. Transporters remain parties — they are commercial counterparties with terms and a relationship, which a registration number is not | — |
+| 30 | 2026-07-29 | The posting function is the only write path to `stock_ledger`, and takes a row lock before any balance check | A check without a lock passes every single-threaded test and produces negative stock in production. The lock, not the CHECK constraint, is what makes concurrent dispatch safe; the constraint is the backstop | — |
+| 31 | 2026-07-29 | Seed data posts opening stock through `post_stock_transaction()` rather than inserting into the ledger | If the seed could bypass the posting path, so could anything else. Nothing writes to `stock_ledger` directly, including fixtures | — |
+
 ## Recording a decision
 
 Add a row when a decision is made, not later. If it materially affects stock accuracy,

@@ -95,46 +95,6 @@ test('filters parties by type', async ({ page }) => {
   await expect(page.locator('tr', { hasText: 'Sanjay Bhaurao Patil' })).toHaveCount(0);
 });
 
-test('creates a vehicle and normalises its registration', async ({ page }) => {
-  await page.goto(`${BASE}/vehicles`);
-  await expect(page.getByRole('heading', { name: 'Vehicles' })).toBeVisible();
-
-  await page.getByRole('button', { name: '+ New vehicle' }).click();
-  await page.fill('#v_reg', 'mh 24 xy 7788');
-  await page.fill('#v_type', 'Truck 6-wheeler');
-  await page.selectOption('#v_transporter', {
-    label: 'Siddhi Vinayak Roadlines (P0010)',
-  });
-  await page.fill('#v_cap', '9.5');
-  await page.fill('#v_insurance_valid_to', '2027-12-31');
-
-  await page.getByRole('button', { name: 'Add vehicle' }).click();
-
-  const row = page.locator('tr', { hasText: 'MH24XY7788' });
-  await expect(row).toBeVisible({ timeout: 10_000 });
-  await expect(row).toContainText('9.500');
-  await expect(row).toContainText('Siddhi Vinayak Roadlines');
-});
-
-test('rejects a malformed vehicle registration', async ({ page }) => {
-  await page.goto(`${BASE}/vehicles`);
-  await page.getByRole('button', { name: '+ New vehicle' }).click();
-
-  await page.fill('#v_reg', 'NOTAREG');
-  await page.getByRole('button', { name: 'Add vehicle' }).click();
-
-  await expect(page.getByTestId('error-registration')).toContainText('MH24AB1234');
-});
-
-test('warns about expired vehicle documents without blocking them', async ({ page }) => {
-  await page.goto(`${BASE}/vehicles`);
-
-  // The seed deliberately includes a vehicle with a lapsed certificate.
-  await expect(page.getByText(/expired document/)).toBeVisible();
-  // It is still listed and still editable — the expiry warns, it does not hide.
-  await expect(page.locator('tr', { hasText: 'MH12IJ2345' })).toBeVisible();
-});
-
 test('reason codes are grouped by category with their controls', async ({ page }) => {
   await page.goto(`${BASE}/reason-codes`);
   await expect(page.getByRole('heading', { name: 'Reason codes' })).toBeVisible();
@@ -179,7 +139,6 @@ test('dashboard counts the new masters', async ({ page }) => {
   };
 
   await atLeast('tile-parties', 15);
-  await atLeast('tile-vehicles', 6);
   await atLeast('tile-reason-codes', 53);
   // Employees are never mutated by these tests, so this one is exact.
   await expect(page.getByTestId('tile-employees')).toContainText('7');

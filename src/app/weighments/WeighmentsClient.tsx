@@ -168,7 +168,7 @@ export default function WeighmentsClient({
                         </span>
                       </td>
                       <td className="px-4 py-3 font-mono text-xs">
-                        {s.vehicle_registration ?? '—'}
+                        {s.vehicle_number ?? '—'}
                       </td>
                       <td className="px-4 py-3 muted">{s.party_name ?? '—'}</td>
                       <td className="px-4 py-3 muted">

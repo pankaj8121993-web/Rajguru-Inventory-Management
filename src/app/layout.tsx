@@ -13,7 +13,6 @@ const NAV = [
   { href: '/locations', label: 'Locations' },
   { href: '/commodities', label: 'Commodities' },
   { href: '/parties', label: 'Parties' },
-  { href: '/vehicles', label: 'Vehicles' },
   { href: '/reason-codes', label: 'Reason codes' },
   { href: '/administration', label: 'Administration' },
 ];
