@@ -262,3 +262,290 @@ cross join (select id from users where code = 'EMP001') u
 on conflict (company_id, code) do nothing;
 
 commit;
+
+-- ===========================================================================
+-- Parties, employees, transport and reason codes (migrations 0004, 0005)
+-- ===========================================================================
+
+begin;
+
+-- ---------------------------------------------------------------------------
+-- Party types
+-- ---------------------------------------------------------------------------
+insert into party_types (code, name, is_supplier, is_customer, sort_order) values
+  ('FARMER',      'Farmer',                 true,  false, 10),
+  ('FARMER_GRP',  'Farmer Group',           true,  false, 20),
+  ('TRADER',      'Trader',                 true,  true,  30),
+  ('BROKER',      'Broker',                 false, false, 40),
+  ('COMM_AGENT',  'Commission Agent',       false, false, 50),
+  ('SUPPLIER',    'Supplier',               true,  false, 60),
+  ('CUSTOMER',    'Customer',               false, true,  70),
+  ('STORAGE_CUST','Storage Customer',       true,  true,  80),
+  ('GOVT',        'Government Agency',      true,  true,  90),
+  ('AUCTION',     'Auction Agency',         true,  false, 100),
+  ('PROCESSOR',   'Processor',              false, true,  110),
+  ('TRANSPORTER', 'Transporter',            false, false, 120),
+  ('FUMIG_VENDOR','Fumigation Vendor',      false, false, 130),
+  ('INSURER',     'Insurance Company',      false, false, 140),
+  ('INS_BROKER',  'Insurance Broker',       false, false, 150),
+  ('SURVEYOR',    'Surveyor',               false, false, 160),
+  ('BANK',        'Bank',                   false, false, 170),
+  ('LABOUR',      'Labour Contractor',      false, false, 180),
+  ('OTHER',       'Other Party',            false, false, 190)
+on conflict (code) do nothing;
+
+-- ---------------------------------------------------------------------------
+-- Parties
+-- ---------------------------------------------------------------------------
+insert into parties (code, legal_name, trade_name, gstin, pan, village, district,
+                     state, mobile, contact_person, credit_terms_days, created_by)
+select v.code, v.legal_name, v.trade_name, v.gstin, v.pan, v.village, v.district,
+       'Maharashtra', v.mobile, v.contact, v.credit, u.id
+from (values
+  ('P0001','Sanjay Bhaurao Patil',        null,                    null, null,              'Ausa',      'Latur',      '9822011001','Sanjay Patil',   null),
+  ('P0002','Vithal Namdev Shinde',        null,                    null, null,              'Nilanga',   'Latur',      '9822011002','Vithal Shinde',  null),
+  ('P0003','Kaveri Farmer Producer Co',   'Kaveri FPC',            '27AABCK1234M1Z5', 'AABCK1234M', 'Renapur', 'Latur', '9822011003','Anil Jadhav',    7),
+  ('P0004','Shree Balaji Traders',        'Balaji Traders',        '27AAECS4567P1ZQ', 'AAECS4567P', 'Latur',   'Latur',  '9822011004','Mahesh Agarwal', 15),
+  ('P0005','Ganesh Agro Commodities',     'Ganesh Agro',           '27AAFCG7890R1Z8', 'AAFCG7890R', 'Latur',   'Latur',  '9822011005','Rakesh Gupta',   21),
+  ('P0006','Mahalaxmi Dal Mill',          'Mahalaxmi Mill',        '27AAGCM2345K1Z3', 'AAGCM2345K', 'Barshi',  'Solapur','9822011006','Sunil Kulkarni', 30),
+  ('P0007','Nanded Commission Agency',    'Nanded Adat',           '27AAHCN6789L1Z1', 'AAHCN6789L', 'Nanded',  'Nanded', '9822011007','Prakash Deshmukh', null),
+  ('P0008','Latur APMC',                  'Latur Market Yard',     null, null,              'Latur',     'Latur',      '9822011008','Market Secretary', null),
+  ('P0009','Maharashtra State Warehousing','MSWC',                 '27AAACM1111N1Z9', 'AAACM1111N', 'Mumbai',  'Mumbai', '9822011009','Regional Manager', null),
+  ('P0010','Siddhi Vinayak Roadlines',    'Siddhi Roadlines',      '27AAJCS3456T1Z7', 'AAJCS3456T', 'Latur',   'Latur',  '9822011010','Ravi Pawar',     null),
+  ('P0011','Om Sai Transport Company',    'Om Sai Transport',      '27AAKCO8901U1Z2', 'AAKCO8901U', 'Solapur', 'Solapur','9822011011','Datta Jagtap',   null),
+  ('P0012','Krishna Pest Control',        'Krishna Fumigation',    '27AALCK2222V1Z4', 'AALCK2222V', 'Latur',   'Latur',  '9822011012','Nitin Sharma',   null),
+  ('P0013','Bharat Foods Private Limited','Bharat Foods',          '27AAMCB5555W1Z6', 'AAMCB5555W', 'Pune',    'Pune',   '9822011013','Amit Rane',      45),
+  ('P0014','Suvarna Storage Services',    'Suvarna Storage',       '27AANCS7777X1Z0', 'AANCS7777X', 'Latur',   'Latur',  '9822011014','Kiran More',     null),
+  ('P0015','National Insurance Company',  'NIC',                   '27AAACN1234Y1Z5', 'AAACN1234Y', 'Mumbai',  'Mumbai', '9822011015','Branch Manager', null)
+) as v(code, legal_name, trade_name, gstin, pan, village, district, mobile, contact, credit)
+cross join (select id from users where code = 'EMP001') u
+on conflict (code) do nothing;
+
+-- Party types — several parties genuinely hold more than one.
+insert into party_party_types (party_id, party_type_id)
+select p.id, t.id
+from (values
+  ('P0001','FARMER'),
+  ('P0002','FARMER'),
+  ('P0003','FARMER_GRP'), ('P0003','SUPPLIER'),
+  ('P0004','TRADER'),     ('P0004','CUSTOMER'),
+  ('P0005','TRADER'),     ('P0005','STORAGE_CUST'),
+  ('P0006','PROCESSOR'),  ('P0006','CUSTOMER'),
+  ('P0007','COMM_AGENT'), ('P0007','BROKER'),
+  ('P0008','AUCTION'),
+  ('P0009','GOVT'),       ('P0009','STORAGE_CUST'),
+  ('P0010','TRANSPORTER'),
+  ('P0011','TRANSPORTER'),
+  ('P0012','FUMIG_VENDOR'),
+  ('P0013','CUSTOMER'),
+  ('P0014','STORAGE_CUST'),
+  ('P0015','INSURER')
+) as v(party_code, type_code)
+join parties p     on p.code = v.party_code
+join party_types t on t.code = v.type_code
+on conflict do nothing;
+
+-- Broker relationships
+update parties set broker_party_id = (select id from parties where code = 'P0007')
+ where code in ('P0001','P0002') and broker_party_id is null;
+
+-- ---------------------------------------------------------------------------
+-- Employees
+-- ---------------------------------------------------------------------------
+insert into employees (code, full_name, designation, department, facility_id,
+                       employment_status, mobile, shift, date_of_joining, user_id, created_by)
+select v.code, v.name, v.designation, v.dept, f.id, 'active', v.mobile, v.shift,
+       v.doj::date, usr.id, cr.id
+from (values
+  ('E001','Ramesh Patil',     'Warehouse Manager',      'Operations', 'ALY', '9822022001','General','2019-06-01','EMP001'),
+  ('E002','Sunita Deshmukh',  'Stock Accountant',       'Accounts',   'ALY', '9822022002','General','2020-02-15','EMP002'),
+  ('E003','Ganesh Kulkarni',  'Weighment Operator',     'Operations', 'ALY', '9822022003','Shift A','2021-08-10','EMP003'),
+  ('E004','Prakash Jadhav',   'Warehouse Supervisor',   'Operations', 'MUR', '9822022004','General','2018-11-20','EMP004'),
+  ('E005','Anita Kadam',      'Quality Inspector',      'Quality',    'ALY', '9822022005','General','2022-03-05',null),
+  ('E006','Suresh Chavan',    'Gate Operator',          'Security',   'ALY', '9822022006','Shift B','2021-01-12',null),
+  ('E007','Manoj Sawant',     'Dispatch Executive',     'Dispatch',   'MUR', '9822022007','General','2020-07-01',null)
+) as v(code, name, designation, dept, facility_code, mobile, shift, doj, user_code)
+join location_nodes f on f.code = v.facility_code and f.node_type = 'facility'
+left join users usr on usr.code = v.user_code
+cross join (select id from users where code = 'EMP001') cr
+on conflict (code) do nothing;
+
+update employees set reporting_manager_id = (select id from employees where code = 'E001')
+ where code in ('E002','E003','E005','E006') and reporting_manager_id is null;
+update employees set reporting_manager_id = (select id from employees where code = 'E004')
+ where code = 'E007' and reporting_manager_id is null;
+
+-- ---------------------------------------------------------------------------
+-- Vehicles
+-- ---------------------------------------------------------------------------
+-- Document validity is stored relative to the seed date so the data stays
+-- meaningful whenever it is loaded, and deliberately includes one vehicle with
+-- an expired certificate and one expiring shortly. An expired document is a
+-- real situation the system must display rather than hide.
+insert into vehicles (registration_number, vehicle_type, transporter_party_id,
+                      capacity_mt, insurance_valid_to, pollution_valid_to,
+                      fitness_valid_to, created_by)
+select v.reg, v.vtype, t.id, v.cap,
+       current_date + (v.ins || ' days')::interval,
+       current_date + (v.pol || ' days')::interval,
+       case when v.fit is null then null
+            else current_date + (v.fit || ' days')::interval end,
+       u.id
+from (values
+  ('MH24AB1234','Truck 10-wheeler','P0010', 16.000,  245,  63,  337),
+  ('MH24AB5678','Truck 6-wheeler', 'P0010',  9.000,  186,  33,  275),
+  ('MH24CD9012','Trailer',         'P0011', 25.000,  155,  94,  214),
+  ('MH13EF3456','Truck 10-wheeler','P0011', 16.000,  306, 124,  398),
+  ('MH24GH7890','Tractor Trolley', null,     6.000,   33,  33, null),
+  -- Lapsed pollution certificate and insurance expiring within the month.
+  ('MH12IJ2345','Truck 12-wheeler','P0010', 21.000,   17, -12,  155)
+) as v(reg, vtype, transporter_code, cap, ins, pol, fit)
+left join parties t on t.code = v.transporter_code
+cross join (select id from users where code = 'EMP001') u
+on conflict (registration_number) do nothing;
+
+-- ---------------------------------------------------------------------------
+-- Drivers
+-- ---------------------------------------------------------------------------
+insert into drivers (code, full_name, licence_number, licence_valid_to,
+                     mobile, transporter_party_id, created_by)
+select v.code, v.name, v.lic, current_date + (v.valid || ' days')::interval,
+       v.mobile, t.id, u.id
+from (values
+  ('D001','Balu Shinde',    'MH2420190001234', 671, '9822033001','P0010'),
+  ('D002','Ramrao Gaikwad', 'MH2420180005678', 489, '9822033002','P0010'),
+  ('D003','Imran Shaikh',   'MH1320200009012', 944, '9822033003','P0011'),
+  ('D004','Santosh Bhosale','MH2420170003456',  63, '9822033004','P0011')
+) as v(code, name, lic, valid, mobile, transporter_code)
+left join parties t on t.code = v.transporter_code
+cross join (select id from users where code = 'EMP001') u
+on conflict (code) do nothing;
+
+-- ---------------------------------------------------------------------------
+-- Weighbridges
+-- ---------------------------------------------------------------------------
+insert into weighbridges (code, name, location_node_id, is_own, make,
+                          capacity_mt, least_count_kg, calibration_valid_to, created_by)
+select v.code, v.name, n.id, v.own, v.make, v.cap, v.lc,
+       current_date + (v.cal || ' days')::interval, u.id
+from (values
+  ('WB-ALY-1','Aliyabad Weighbridge 1','ALY-WB1', true,  'Avery India',       60.000, 10.000, 245),
+  ('WB-MUR-1','Murud Weighbridge 1',   'MUR-WB1', true,  'Essae Digitronics', 50.000, 10.000, 155)
+) as v(code, name, node_code, own, make, cap, lc, cal)
+left join location_nodes n on n.code = v.node_code
+cross join (select id from users where code = 'EMP001') u
+on conflict (code) do nothing;
+
+-- ---------------------------------------------------------------------------
+-- Reason code categories
+-- ---------------------------------------------------------------------------
+insert into reason_code_categories (code, name, description, sort_order) values
+  ('GAIN',        'Gain',            'Reasons book stock increased (blueprint 18.1)', 10),
+  ('LOSS',        'Loss',            'Reasons book stock decreased (blueprint 18.2)', 20),
+  ('DAMAGE',      'Damage',          'Reasons stock was damaged',                     30),
+  ('REJECTION',   'Rejection',       'Reasons stock or a vehicle was rejected',       40),
+  ('ADJUSTMENT',  'Adjustment',      'Reasons for a stock adjustment',                50),
+  ('OVERRIDE',    'Override',        'Reasons a restriction was overridden',          60),
+  ('CORRECTION',  'Correction',      'The original entry was wrong (DR-17)',          70),
+  ('RECLASS',     'Reclassification','New information improved the record (DR-17)',   80),
+  ('DUPLICATE',   'Duplicate Review','Outcomes of a suspected duplicate weighment',   90)
+on conflict (code) do nothing;
+
+-- ---------------------------------------------------------------------------
+-- Reason codes
+-- ---------------------------------------------------------------------------
+insert into reason_codes (category_id, code, name, requires_evidence,
+                          requires_approval, is_exception, sort_order)
+select c.id, v.code, v.name, v.evidence, v.approval, v.exception, v.sort_order
+from (values
+  -- Gain (blueprint 18.1)
+  ('GAIN','MOISTURE_GAIN',   'Moisture increase',              false,false,false,10),
+  ('GAIN','WEIGH_VARIATION', 'Weighment variation',            false,false,false,20),
+  ('GAIN','EXCESS_RECEIPT',  'Excess receipt',                 true, true, false,30),
+  ('GAIN','PROC_RECOVERY',   'Processing recovery',            false,false,false,40),
+  ('GAIN','PV_SURPLUS',      'Physical verification surplus',  true, true, true, 50),
+  ('GAIN','BAG_COUNT_CORR',  'Bag-count correction',           true, false,false,60),
+  ('GAIN','STANDARDISATION', 'Standardisation correction',     false,false,false,70),
+  -- Loss (blueprint 18.2)
+  ('LOSS','MOISTURE_LOSS',   'Moisture loss',                  false,false,false,10),
+  ('LOSS','DRYING',          'Drying loss',                    false,false,false,20),
+  ('LOSS','HANDLING',        'Handling loss',                  false,false,false,30),
+  ('LOSS','SPILLAGE',        'Spillage',                       true, false,false,40),
+  ('LOSS','TRANSIT',         'Transit loss',                   true, true, false,50),
+  ('LOSS','PEST',            'Pest damage',                    true, true, true, 60),
+  ('LOSS','RODENT',          'Rodent damage',                  true, true, true, 70),
+  ('LOSS','WATER',           'Water damage',                   true, true, true, 80),
+  ('LOSS','THEFT',           'Theft',                          true, true, true, 90),
+  ('LOSS','BAG_SHORTAGE',    'Bag shortage',                   true, false,false,100),
+  ('LOSS','WEIGH_DIFF',      'Weighment difference',           false,false,false,110),
+  ('LOSS','SAMPLING',        'Sampling',                       false,false,false,120),
+  ('LOSS','PROC_LOSS',       'Processing loss',                false,false,false,130),
+  ('LOSS','FIRE',            'Fire',                           true, true, true, 140),
+  ('LOSS','NATURAL_EVENT',   'Natural event',                  true, true, true, 150),
+  ('LOSS','PV_SHORTAGE',     'Physical verification shortage', true, true, true, 160),
+  -- Damage
+  ('DAMAGE','WET',           'Wet or water-affected',          true, true, true, 10),
+  ('DAMAGE','INFESTED',      'Infested',                       true, true, true, 20),
+  ('DAMAGE','DISCOLOURED',   'Discoloured',                    true, false,false,30),
+  ('DAMAGE','TORN_BAGS',     'Torn bags',                      true, false,false,40),
+  ('DAMAGE','CONTAMINATED',  'Contaminated',                   true, true, true, 50),
+  -- Rejection
+  ('REJECTION','QUALITY_FAIL','Failed quality parameters',     true, false,false,10),
+  ('REJECTION','MOISTURE_HIGH','Moisture above limit',         true, false,false,20),
+  ('REJECTION','FM_HIGH',    'Foreign matter above limit',     true, false,false,30),
+  ('REJECTION','WRONG_COMMODITY','Wrong commodity supplied',   true, false,true, 40),
+  ('REJECTION','DOC_MISSING','Documents missing',              false,false,false,50),
+  -- Adjustment
+  ('ADJUSTMENT','RECONCILE', 'Final reconciliation',           true, true, false,10),
+  ('ADJUSTMENT','ROUNDING',  'Rounding correction',            false,false,false,20),
+  ('ADJUSTMENT','OPENING_BAL','Opening balance correction',    true, true, true, 30),
+  -- Override
+  ('OVERRIDE','URGENT_DISPATCH','Urgent dispatch requirement',  true, true, true, 10),
+  ('OVERRIDE','CAPACITY_EXCEED','Capacity limit exceeded',      true, true, true, 20),
+  ('OVERRIDE','FUMIG_EARLY', 'Early release from fumigation',  true, true, true, 30),
+  ('OVERRIDE','BACKDATED',   'Backdated entry',                true, true, true, 40),
+  ('OVERRIDE','SYSTEM_ERROR','System error workaround',        true, true, true, 50),
+  -- Correction (original entry was wrong)
+  ('CORRECTION','TYPING_ERROR','Data entry error',             false,true, true, 10),
+  ('CORRECTION','WRONG_PARTY','Wrong party selected',          false,true, true, 20),
+  ('CORRECTION','WRONG_VEHICLE','Wrong vehicle recorded',      false,true, true, 30),
+  ('CORRECTION','SLIP_MISREAD','Weighment slip misread',       true, true, true, 40),
+  -- Reclassification (new information arrived)
+  ('RECLASS','VARIETY_KNOWN','Variety now established',        false,true, false,10),
+  ('RECLASS','GRADE_ASSESSED','Grade assessed after inspection',false,true,false,20),
+  ('RECLASS','LOT_ASSIGNED', 'Final lot now assigned',         false,true, false,30),
+  ('RECLASS','LOCATION_CONFIRMED','Exact location confirmed',  false,true, false,40),
+  ('RECLASS','SOURCE_ALLOCATED','Source allocation established',false,true,false,50),
+  -- Duplicate review
+  ('DUPLICATE','GENUINE_SEPARATE','Genuine separate weighment', true, true, false,10),
+  ('DUPLICATE','CONFIRMED_DUP','Confirmed duplicate',           false,false,true, 20),
+  ('DUPLICATE','LINKED_EARLIER','Linked to the earlier record', false,false,false,30)
+) as v(cat_code, code, name, evidence, approval, exception, sort_order)
+join reason_code_categories c on c.code = v.cat_code
+on conflict (category_id, code) do nothing;
+
+-- ---------------------------------------------------------------------------
+-- Document types
+-- ---------------------------------------------------------------------------
+insert into document_types (code, name, applies_to, is_mandatory) values
+  ('WEIGH_SLIP',   'Weighment Slip',          'weighment',    true),
+  ('INVOICE',      'Tax Invoice',             'inward',       false),
+  ('DELIVERY_CHLN','Delivery Challan',        'outward',      true),
+  ('GATE_PASS',    'Gate Pass',               'inward',       false),
+  ('LORRY_RECEIPT','Lorry Receipt',           'outward',      false),
+  ('QUALITY_CERT', 'Quality Certificate',     'quality',      false),
+  ('LAB_REPORT',   'Laboratory Report',       'quality',      false),
+  ('FUMIG_CERT',   'Fumigation Certificate',  'fumigation',   true),
+  ('PV_SHEET',     'Physical Verification Sheet','verification',true),
+  ('POLICY_DOC',   'Insurance Policy Document','insurance',   true),
+  ('ENDORSEMENT',  'Policy Endorsement',      'insurance',    false),
+  ('SURVEY_REPORT','Surveyor Report',         'insurance',    false),
+  ('STORAGE_AGMT', 'Storage Agreement',       'party',        false),
+  ('GST_CERT',     'GST Registration',        'party',        false),
+  ('PAN_CARD',     'PAN Card',                'party',        false),
+  ('RC_BOOK',      'Vehicle Registration',    'vehicle',      false),
+  ('VEH_INSURANCE','Vehicle Insurance',       'vehicle',      false),
+  ('PHOTO',        'Photograph',              'inward',       false)
+on conflict (code) do nothing;
+
+commit;

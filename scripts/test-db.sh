@@ -81,6 +81,46 @@ rejects "a grade cannot use a variety of another commodity" \
     where v.commodity_id <> c.id limit 1"
 
 echo
+echo "Party rules"
+rejects "a party must have at least one type" \
+  "insert into parties (code,legal_name) values ('TEST-P1','No Type Party')"
+
+rejects "a malformed GSTIN is rejected" \
+  "insert into parties (code,legal_name,gstin) values ('TEST-P2','Bad GSTIN','27AABCK1234M1Z')"
+
+rejects "a malformed PAN is rejected" \
+  "insert into parties (code,legal_name,pan) values ('TEST-P3','Bad PAN','AABCK1234')"
+
+rejects "a malformed mobile number is rejected" \
+  "insert into parties (code,legal_name,mobile) values ('TEST-P4','Bad Mobile','1234567890')"
+
+rejects "a party cannot be its own broker" \
+  "update parties set broker_party_id = id where code = (select code from parties limit 1)"
+
+rejects "a duplicate GSTIN is rejected" \
+  "insert into parties (code,legal_name,gstin)
+   select 'TEST-P5','Dup GSTIN',gstin from parties where gstin is not null limit 1"
+
+echo
+echo "Vehicle rules"
+rejects "a malformed registration number is rejected" \
+  "insert into vehicles (registration_number) values ('NOTAREG')"
+
+rejects "a negative vehicle capacity is rejected" \
+  "insert into vehicles (registration_number,capacity_mt) values ('MH99ZZ9999',-1)"
+
+echo
+echo "Employee rules"
+rejects "an employee cannot report to themselves" \
+  "update employees set reporting_manager_id = id where code = (select code from employees limit 1)"
+
+echo
+echo "Reason code rules"
+rejects "a duplicate reason code within a category is rejected" \
+  "insert into reason_codes (category_id,code,name)
+   select category_id,code,'Dup' from reason_codes limit 1"
+
+echo
 echo "Audit trail is append-only (NFR-14)"
 psql "$URL" -q -c "insert into audit_events (actor_label,action,entity_table)
                    values ('db-test','create','test')" >/dev/null 2>&1

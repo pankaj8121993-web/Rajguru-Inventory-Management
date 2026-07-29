@@ -13,6 +13,10 @@ interface Counts {
   commodities: string;
   varieties: string;
   grades: string;
+  parties: string;
+  vehicles: string;
+  employees: string;
+  reason_codes: string;
   audit: string;
 }
 
@@ -42,6 +46,10 @@ export default async function DashboardPage() {
       (select count(*) from commodities where is_active)::text as commodities,
       (select count(*) from varieties   where is_active)::text as varieties,
       (select count(*) from grades      where is_active)::text as grades,
+      (select count(*) from parties      where is_active)::text as parties,
+      (select count(*) from vehicles     where is_active)::text as vehicles,
+      (select count(*) from employees    where is_active)::text as employees,
+      (select count(*) from reason_codes where is_active)::text as reason_codes,
       (select count(*) from audit_events)::text as audit
   `);
 
@@ -67,6 +75,10 @@ export default async function DashboardPage() {
     { label: 'Commodities', value: counts.commodities, href: '/commodities' },
     { label: 'Varieties', value: counts.varieties, href: '/commodities' },
     { label: 'Grades', value: counts.grades, href: '/commodities' },
+    { label: 'Parties', value: counts.parties, href: '/parties' },
+    { label: 'Vehicles', value: counts.vehicles, href: '/vehicles' },
+    { label: 'Employees', value: counts.employees, href: '/parties' },
+    { label: 'Reason codes', value: counts.reason_codes, href: '/reason-codes' },
   ];
 
   return (
@@ -133,9 +145,10 @@ export default async function DashboardPage() {
       <section className="card p-5">
         <h2 className="text-lg font-semibold mb-2">Where this is up to</h2>
         <p className="text-sm">
-          Master data for locations and commodities is working. Weighment,
-          inward, provisional stock and the stock ledger are not built yet —
-          see <code className="text-xs">docs/09-ai-governance/CURRENT_STATE.md</code>.
+          Master data is working: locations, commodities, parties, vehicles,
+          employees and reason codes. Weighment, inward, provisional stock and
+          the stock ledger are not built yet — see{' '}
+          <code className="text-xs">docs/09-ai-governance/CURRENT_STATE.md</code>.
         </p>
         <p className="hint mt-2">
           {counts.audit} audit event{counts.audit === '1' ? '' : 's'} recorded.

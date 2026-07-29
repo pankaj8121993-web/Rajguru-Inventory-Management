@@ -6,28 +6,22 @@ const OUT = '/workspace/shots';
 test('capture screens', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
 
-  await page.goto('http://127.0.0.1:3000/');
-  await page.waitForLoadState('networkidle');
-  await page.screenshot({ path: `${OUT}/1-dashboard.png`, fullPage: true });
-
-  await page.goto('http://127.0.0.1:3000/locations');
-  await page.waitForLoadState('networkidle');
-  await page.screenshot({ path: `${OUT}/2-locations.png`, fullPage: true });
-
-  await page.getByRole('button', { name: '+ New location' }).click();
-  await page.selectOption('#node_type', 'godown');
-  await page.waitForTimeout(300);
-  await page.screenshot({ path: `${OUT}/3-new-location-form.png`, fullPage: true });
-
-  await page.goto('http://127.0.0.1:3000/commodities');
-  await page.waitForLoadState('networkidle');
-  await page.getByRole('button', { name: 'Tur', exact: true }).click();
-  await page.waitForTimeout(300);
-  await page.screenshot({ path: `${OUT}/4-commodities.png`, fullPage: true });
+  for (const [name, path] of [
+    ['1-dashboard', '/'],
+    ['2-locations', '/locations'],
+    ['4-commodities', '/commodities'],
+    ['6-parties', '/parties'],
+    ['7-vehicles', '/vehicles'],
+    ['8-reason-codes', '/reason-codes'],
+  ] as const) {
+    await page.goto(`http://127.0.0.1:3000${path}`);
+    await page.waitForLoadState('networkidle');
+    await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: true });
+  }
 
   // Mobile — the primary device for yard staff.
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('http://127.0.0.1:3000/locations');
+  await page.goto('http://127.0.0.1:3000/parties');
   await page.waitForLoadState('networkidle');
-  await page.screenshot({ path: `${OUT}/5-locations-mobile.png`, fullPage: true });
+  await page.screenshot({ path: `${OUT}/9-parties-mobile.png`, fullPage: true });
 });

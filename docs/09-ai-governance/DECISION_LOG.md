@@ -24,6 +24,12 @@ Chronological record of decisions. Architectural decisions get a full ADR in
 | 16 | 2026-07-29 | Pinned `postcss` 8.5.18 and `sharp` 0.35.0 through npm overrides | Three high-severity advisories arrived transitively through Next. npm's suggested fix was downgrading Next to 9.3.3, which is not a fix. Overrides clear the audit while keeping Next current | — |
 | 17 | 2026-07-29 | Playwright owns the dev server and resets the database in `globalSetup` | Tests that mutate shared state gave order-dependent results — a created godown changed a count another test asserted. Resetting first makes failures real | — |
 
+| 18 | 2026-07-29 | A party's types are many-to-many, not a single column | A trader is frequently also a storage customer, and a broker also a commission agent. One record with several types beats duplicate records that drift apart | — |
+| 19 | 2026-07-29 | GSTIN, PAN, bank details and address are all optional on a party | A farmer selling at the mandi gate often has none of them. Requiring them would force invented data — the false precision the blueprint forbids (§2.4). Format is checked only when a value is supplied | — |
+| 20 | 2026-07-29 | Vehicle document expiry warns, never blocks | A vehicle at the gate with a lapsed certificate is a real situation. Blocking it would push staff to enter a different vehicle number, which is worse than recording the truth and flagging it | — |
+| 21 | 2026-07-29 | The transporter on a vehicle is a party holding the Transporter type, not a separate transporter master | The same firm may be both a transporter and a trader. A separate master would duplicate it | — |
+| 22 | 2026-07-29 | Seed document-validity dates are relative to `current_date` | Hard-coded dates silently stop exercising the expiry paths as time passes. Relative offsets keep one certificate genuinely expired whenever the seed is loaded | — |
+
 ## Recording a decision
 
 Add a row when a decision is made, not later. If it materially affects stock accuracy,

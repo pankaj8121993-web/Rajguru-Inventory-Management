@@ -7,7 +7,7 @@ as SQL **is not done** (AGENTS.md §4, development prompt §4).
 
 ## Status
 
-Three migrations exist, covering the master-data slice. **No Supabase project is
+Five migrations exist, covering the master-data slices. **No Supabase project is
 provisioned**, so "dev" below means the local PostgreSQL 16 instance used during
 development, not a hosted environment.
 
@@ -16,9 +16,18 @@ development, not a hosted environment.
 | 0001 | `0001_foundation.sql` | Extensions, structural enums (`location_node_type`, `identification_status`, `identification_confidence`, `location_precision`), interim `users`, append-only `audit_events` with mutation guards, `set_updated_at()` | 3 | Yes | No | No | Yes |
 | 0002 | `0002_organisation_and_locations.sql` | `companies`, `location_nodes` self-referencing tree, `location_node_type_rules` placement table, hierarchy validation and cycle-prevention trigger, `location_node_path()`, RLS | 3 | Yes | No | No | Yes |
 | 0003 | `0003_commodity_masters.sql` | `units`, `bag_types`, `commodity_groups`, `commodities`, `varieties`, `grades` with cross-commodity variety guard, RLS | 3 | Yes | No | No | Yes |
+| 0004 | `0004_parties_and_transport.sql` | `party_types`, `parties` with GSTIN/PAN/IFSC/mobile/pincode format checks and partial unique indexes, `party_party_types` many-to-many with two deferred constraint triggers enforcing "at least one type", `employees`, `vehicles`, `drivers`, `weighbridges`, RLS | 3 | Yes | No | No | Yes |
+| 0005 | `0005_reason_codes.sql` | `reason_code_categories`, `reason_codes` with evidence/approval/exception flags, `document_types`, RLS | 3 | Yes | No | No | Yes |
 
 `supabase/seed.sql` seeds realistic development data. It is idempotent and is **not**
 a migration — it never runs against staging or production.
+
+### Note on the party-type rule
+
+The "a party must have at least one type" rule needs **two** deferred constraint triggers:
+one on `party_party_types` (catching the removal of the last type) and one on `parties`
+(catching a party inserted with no types at all). The second was added after a database
+test proved the first alone let a typeless party through.
 
 ### Verified
 

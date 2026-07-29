@@ -11,6 +11,9 @@ const NAV = [
   { href: '/', label: 'Dashboard' },
   { href: '/locations', label: 'Locations' },
   { href: '/commodities', label: 'Commodities' },
+  { href: '/parties', label: 'Parties' },
+  { href: '/vehicles', label: 'Vehicles' },
+  { href: '/reason-codes', label: 'Reason codes' },
 ];
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -22,7 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Link href="/" className="font-semibold tracking-tight">
               Rajguru Foods
             </Link>
-            <nav className="flex gap-1" aria-label="Main">
+            <nav className="flex flex-wrap gap-1" aria-label="Main">
               {NAV.map((item) => (
                 <Link
                   key={item.href}

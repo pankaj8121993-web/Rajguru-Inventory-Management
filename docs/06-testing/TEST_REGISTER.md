@@ -7,13 +7,13 @@ results, never intended results.**
 
 | Suite | Scope | Tests | Status | Last run |
 |---|---|---|---|---|
-| `npm run test` (Vitest) | Input validation schemas for locations, commodities and grades | 16 | **Passing** | 2026-07-29 |
-| `npm run test:db` | Schema guarantees, constraints, triggers, RLS coverage | 12 assertions | **Passing** | 2026-07-29 |
-| `npm run test:e2e` (Playwright) | Master-data workflows through a real browser | 7 | **Passing** | 2026-07-29 |
+| `npm run test` (Vitest) | Validation schemas for locations, commodities, grades, parties, vehicles, reason codes | 38 | **Passing** | 2026-07-29 |
+| `npm run test:db` | Schema guarantees, constraints, triggers, RLS coverage | 22 assertions | **Passing** | 2026-07-29 |
+| `npm run test:e2e` (Playwright) | Master-data workflows through a real browser | 19 | **Passing** | 2026-07-29 |
 | `npm run lint` (ESLint) | Code quality | — | **Clean** | 2026-07-29 |
 | `npm run typecheck` (tsc) | Type safety, strict mode | — | **Clean** | 2026-07-29 |
 
-Total: **35 automated checks passing.**
+Total: **79 automated checks passing.**
 
 ## What the database tests prove
 
@@ -27,13 +27,27 @@ Total: **35 automated checks passing.**
 - A location cannot be its own parent
 - Moisture above 100% is rejected
 - A grade cannot reference a variety of a different commodity
+- A party must have at least one type — checked both when a type is removed and when a
+  party is created with none
+- A malformed GSTIN, PAN or mobile number is rejected
+- A duplicate GSTIN is rejected
+- A party cannot be its own broker
+- An employee cannot report to themselves
+- A malformed vehicle registration is rejected
+- A negative vehicle capacity is rejected
+- A duplicate reason code within a category is rejected
 - Audit events cannot be updated or deleted (NFR-14)
 
 ## What the end-to-end tests prove
 
-Creating a godown and a commodity through the browser, both persisting across a reload;
-adding a variety to an existing commodity; and three rejections surfacing a clear message
-to the user while writing **no** row to the database.
+Creating a godown, a commodity, a farmer, a vehicle and a reason code through the browser,
+each persisting across a reload; adding a variety to an existing commodity; filtering
+parties by type; normalising a mobile number written as `+91 98220 55001` and a
+registration written as `mh 24 xy 7788`; and six rejections surfacing a clear message to
+the user while writing **no** row to the database.
+
+It also confirms that a vehicle with an expired document is **warned about and still
+listed** — an expiry must never hide a vehicle that is physically at the gate.
 
 ## Invariant coverage
 

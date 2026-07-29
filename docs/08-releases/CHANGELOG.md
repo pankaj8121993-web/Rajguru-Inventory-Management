@@ -5,6 +5,38 @@ Versioning is [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — 2026-07-29 — Party, transport and reason-code masters (Phase 3, partial)
+
+Completes the master data that manual weighment entry depends on.
+
+- **Database** — two migrations: parties and transport (`party_types`, `parties`,
+  `party_party_types`, `employees`, `vehicles`, `drivers`, `weighbridges`) and reason
+  codes (`reason_code_categories`, `reason_codes`, `document_types`)
+- **Validation in the database** — GSTIN, PAN, IFSC, mobile and pincode formats;
+  partial unique indexes on GSTIN and PAN; a party cannot be its own broker; an employee
+  cannot report to themselves; vehicle registration format
+- **A party holds many types** — enforced by two deferred constraint triggers so a party
+  can never exist without at least one
+- **Seed** — 15 parties (6 with multiple types), 19 party types, 7 employees, 6 vehicles,
+  4 drivers, 2 weighbridges, 53 reason codes across 9 categories, 18 document types
+- **Parties UI** — list with type badges, type filter, create, edit, deactivate; GSTIN
+  and PAN optional throughout
+- **Vehicles UI** — transporter link, capacity, document validity with expired and
+  expiring-soon warnings that never block
+- **Reason codes UI** — grouped by category, showing evidence, approval and exception
+  flags; add your own
+- **Tests** — 38 Vitest (up from 16), 22 database assertions (up from 12), 19 Playwright
+  end-to-end (up from 7)
+
+### Fixed
+
+- The "a party must have at least one type" rule originally only fired when a type row
+  was touched, so a party inserted with no types slipped through. Caught by a database
+  test; a second deferred constraint trigger on `parties` now closes it.
+- Seed document-validity dates are now relative to the seed date rather than hard-coded,
+  so the data stays meaningful whenever it is loaded and deliberately includes one
+  genuinely expired certificate.
+
 ### Added — 2026-07-29 — Master data: locations and commodities (Phase 3, partial)
 
 First working application code. A complete vertical slice for the two masters the

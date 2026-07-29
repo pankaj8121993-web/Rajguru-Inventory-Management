@@ -9,16 +9,16 @@ working, it is Not started. If a test is written but failing, it is failing.
 - **Last updated:** 2026-07-29
 - **Current phase:** Phase 3 — Platform Foundation, partially delivered
 - **Application code:** Next.js 15 app, running and verified locally
-- **Database:** PostgreSQL 16, 3 migrations, seeded — **local only, no Supabase project**
-- **Tests:** 35 automated checks, all passing
+- **Database:** PostgreSQL 16, 5 migrations, seeded — **local only, no Supabase project**
+- **Tests:** 79 automated checks, all passing
 - **Deployed:** Nowhere
 
 ---
 
 ## What works, verified by running it
 
-The **master-data slice for locations and commodities** is complete and exercised end to
-end through a real browser against a real database.
+The **master-data slices for locations, commodities, parties, vehicles and reason codes**
+are complete and exercised end to end through a real browser against a real database.
 
 | Capability | Evidence |
 |---|---|
@@ -33,6 +33,14 @@ end through a real browser against a real database.
 | Audit trail | Every create writes an audit event **in the same transaction**; verified in the database |
 | Append-only audit | `UPDATE` and `DELETE` on `audit_events` are blocked by trigger |
 | Deactivate, never delete | No delete path exists for any master (DR-54) |
+| Parties with many-to-many types | 15 seeded parties; 6 hold more than one type (a trader who also stores stock is one record) |
+| GSTIN, PAN, IFSC, mobile, pincode validation | Format-checked when supplied, optional throughout — a farmer with neither is a valid record |
+| Mobile and registration normalisation | `+91 98220 55001` → `9822055001`; `mh 24 xy 7788` → `MH24XY7788` |
+| Party type filter | Filters the list server-side |
+| Vehicles with transporter link | Only parties holding the Transporter type appear in the picker |
+| Document expiry warning | Expired insurance, pollution or fitness is flagged — never blocked or hidden |
+| Employees with reporting lines | 7 seeded, self-reporting rejected |
+| Reason codes by category | 53 codes across 9 categories, with evidence, approval and exception flags |
 | Mobile layout | Verified at 390px |
 
 ## What exists but is not yet real
@@ -68,9 +76,11 @@ Legend: **Not started** · **In progress** · **Built, untested** · **Tested** 
 |---|---|---|
 | Locations | 3 | **Verified running** |
 | Commodity masters | 3 | **Verified running** |
+| Party, employee and transport masters | 3 | **Verified running** |
+| Reason codes and document types | 3 | **Verified running** |
 | Audit (governance) | 3 | **Verified running** — master data only |
 | Identity and access | 3 | Not started |
-| Remaining masters — parties, employees, vehicles, reason codes | 3 | Not started |
+| Weighbridge and driver masters | 3 | Schema and seed only — no UI yet |
 | Approvals and override framework | 3 | Not started |
 | Weighment | 4 | Not started |
 | Provisional stock and identification | 5 | Not started |
@@ -91,9 +101,9 @@ Legend: **Not started** · **In progress** · **Built, untested** · **Tested** 
 |---|---|
 | ESLint | Clean |
 | TypeScript strict | Clean |
-| Vitest — validation | 16 passing |
-| Database, constraints, RLS | 12 assertions passing |
-| Playwright end-to-end | 7 passing |
+| Vitest — validation | 38 passing |
+| Database, constraints, RLS | 22 assertions passing |
+| Playwright end-to-end | 19 passing |
 
 **0 of 25 invariants have a direct test.** All 25 concern the stock ledger, which does not
 exist yet. Two forward guards are already enforced in CI: `stock_ledger.lot_id` must be
@@ -119,8 +129,8 @@ anywhere in the schema (NFR-01).
 | 11 | **Provision Supabase projects — development, staging, production** | Auth, deployment, anything beyond local | Technical |
 
 Blockers 5 and 6 are now **less urgent than they were**: the seed data is realistic enough
-to build against, and you can enter your own godowns and commodities through the UI. They
-are still needed before go-live.
+to build against, and you can enter your own godowns, commodities, parties, vehicles and
+reason codes through the UI. They are still needed before go-live.
 
 Blocker 11 is now the practical bottleneck. Nothing can be deployed or authenticated
 without it.
@@ -153,9 +163,15 @@ npm run dev               # http://localhost:3000
 
 ## Next task
 
-**Identity and access (Phase 3).** Users, roles, permissions and scopes, with RLS policies
-that actually enforce scope, and maker-checker groundwork. This is the largest remaining
-gap — every subsequent module depends on knowing who is acting.
+Two candidates, depending on which blockers clear first.
 
-It needs blockers 1–3 answered first, and blocker 11 (Supabase) to use Supabase Auth
-rather than building an interim login that would be thrown away.
+**If the matrices and Supabase are settled → identity and access (Phase 3).** Users, roles,
+permissions and scopes, with RLS policies that actually enforce scope, and maker-checker
+groundwork. Every subsequent module depends on knowing who is acting. Needs blockers 1–3
+and 11.
+
+**If they are not → manual weighment entry (Phase 4).** All its master-data prerequisites
+now exist: parties, vehicles, drivers, weighbridges, commodities and reason codes. It can
+be built and demonstrated without authentication, then have access control applied when
+the identity slice lands. Needs blocker 7 (net-weight tolerance) but a sensible default
+can be configured and changed later.
