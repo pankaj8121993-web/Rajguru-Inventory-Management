@@ -1,0 +1,40 @@
+# Gitleaks configuration for the Rajguru Foods platform.
+# Extends the default rule set with project-specific rules.
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "supabase-service-role-key"
+description = "Supabase service-role key — must never leave the server (INV-25)"
+regex = '''(?i)(service[_-]?role[_-]?key|SUPABASE_SERVICE_ROLE[_A-Z]*)\s*[:=]\s*['"]?eyJ[A-Za-z0-9_-]{20,}'''
+tags = ["supabase", "critical"]
+
+[[rules]]
+id = "supabase-jwt"
+description = "Supabase JWT"
+regex = '''eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}'''
+tags = ["supabase", "jwt"]
+
+[[rules]]
+id = "postgres-connection-string"
+description = "PostgreSQL connection string with credentials"
+regex = '''postgres(ql)?:\/\/[^:\s]+:[^@\s]+@[^\s'"]+'''
+tags = ["database", "critical"]
+
+[allowlist]
+description = "Paths and values that are not secrets"
+paths = [
+  '''\.gitleaks\.toml$''',
+  '''(^|/)\.env\.example$''',
+  '''(^|/)docs/''',
+  '''(^|/)agent-skills/''',
+  '''(^|/)\.agents/''',
+  '''(^|/)\.claude/''',
+]
+regexes = [
+  # Placeholder values used in documentation and examples.
+  '''your[-_]?(key|secret|token|password)''',
+  '''<[A-Z_]+>''',
+  '''(xxx|XXX|placeholder|PLACEHOLDER|example|EXAMPLE|changeme)''',
+]

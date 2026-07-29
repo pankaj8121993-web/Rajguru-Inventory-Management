@@ -1,0 +1,66 @@
+# Project-specific Semgrep rules enforcing the inventory invariants and
+# architecture decisions that static analysis can actually check.
+# See docs/01-domain/INVENTORY_INVARIANTS.md and docs/02-architecture/adr/.
+
+rules:
+  - id: no-float-for-quantity
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: >-
+      Floating-point arithmetic on a stock quantity. Quantities must use a decimal
+      type end to end (NFR-01). Use the project decimal library, never JavaScript
+      number arithmetic.
+    patterns:
+      - pattern-either:
+          - pattern: parseFloat($X)
+          - pattern: Number($X)
+      - pattern-inside: |
+          function $F(...) { ... }
+    paths:
+      include:
+        - "**/stock/**"
+        - "**/weighment/**"
+        - "**/inventory/**"
+        - "**/posting/**"
+
+  - id: no-service-role-key-in-client
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: >-
+      The Supabase service-role key must never appear in client-side code (INV-25,
+      ADR-0004). Move this to a server-only module.
+    pattern-either:
+      - pattern: process.env.SUPABASE_SERVICE_ROLE_KEY
+      - pattern: process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY
+    paths:
+      include:
+        - "**/components/**"
+        - "**/app/**/page.tsx"
+        - "**/app/**/layout.tsx"
+        - "**/hooks/**"
+
+  - id: no-ledger-mutation
+    languages: [sql, typescript, javascript]
+    severity: ERROR
+    message: >-
+      Posted ledger entries are immutable (INV-02). Correct by contra transaction,
+      never by UPDATE or DELETE on stock_ledger.
+    pattern-regex: '(?i)(UPDATE|DELETE\s+FROM)\s+stock_ledger'
+
+  - id: no-dangerously-set-inner-html
+    languages: [typescript, javascript]
+    severity: WARNING
+    message: >-
+      dangerouslySetInnerHTML risks XSS. Sanitise the input and document why raw
+      HTML is required, or avoid it.
+    pattern: dangerouslySetInnerHTML={...}
+
+  - id: no-string-built-sql
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: >-
+      SQL built by string concatenation or interpolation risks injection. Use
+      parameterised queries only.
+    pattern-either:
+      - pattern: $DB.query("..." + $X)
+      - pattern: $DB.query(`...${$X}...`)

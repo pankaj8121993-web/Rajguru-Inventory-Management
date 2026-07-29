@@ -1,0 +1,140 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Governance — runs today. Verifies the documentation and skill structure that
+  # the whole project depends on.
+  # ---------------------------------------------------------------------------
+  governance:
+    name: Governance structure
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify required documents and skills exist
+        run: ./scripts/check-structure.sh
+
+      - name: Verify skill mirrors are current
+        run: ./scripts/sync-skills.sh --check
+
+      - name: Guard the inventory invariants
+        run: |
+          # These greps protect rules that must never be weakened by an edit.
+          # See docs/01-domain/INVENTORY_INVARIANTS.md
+          fail=0
+
+          if ! grep -q "INV-04" docs/01-domain/INVENTORY_INVARIANTS.md; then
+            echo "::error::INV-04 (lot_id stays nullable) is missing from the invariants file"
+            fail=1
+          fi
+
+          count=$(grep -cE '^\| INV-[0-9]+ \|' docs/01-domain/INVENTORY_INVARIANTS.md || true)
+          if [ "$count" -lt 25 ]; then
+            echo "::error::Expected at least 25 invariants, found $count. Invariants may be added, never removed."
+            fail=1
+          fi
+          echo "Found $count invariants."
+
+          exit $fail
+
+  # ---------------------------------------------------------------------------
+  # Secret scanning — runs today.
+  # ---------------------------------------------------------------------------
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ---------------------------------------------------------------------------
+  # Application gates — activate from Phase 3, when application code exists.
+  # Each step is skipped while its config file is absent, so CI stays green and
+  # honest rather than failing on work that has not started.
+  # ---------------------------------------------------------------------------
+  application:
+    name: Application checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect application scaffold
+        id: detect
+        run: |
+          if [ -f package.json ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "No package.json yet — Phase 0 is governance only. Application gates inactive."
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.detect.outputs.present == 'true'
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        if: steps.detect.outputs.present == 'true'
+        run: npm ci
+
+      - name: Lint
+        if: steps.detect.outputs.present == 'true'
+        run: npm run lint
+
+      - name: Type check
+        if: steps.detect.outputs.present == 'true'
+        run: npm run typecheck
+
+      - name: Unit tests
+        if: steps.detect.outputs.present == 'true'
+        run: npm run test
+
+      - name: Database, RLS and invariant tests
+        if: steps.detect.outputs.present == 'true'
+        run: npm run test:db
+
+      - name: Build
+        if: steps.detect.outputs.present == 'true'
+        run: npm run build
+
+      # INV-25 / NFR-04: the service-role key must never reach the browser.
+      - name: Scan client bundle for the service-role key
+        if: steps.detect.outputs.present == 'true'
+        run: |
+          if [ -d .next ]; then
+            if grep -rEl "SUPABASE_SERVICE_ROLE|service_role" .next/static 2>/dev/null; then
+              echo "::error::Service-role key reference found in the client bundle (INV-25)."
+              exit 1
+            fi
+            echo "Client bundle clean."
+          fi
+
+      - name: End-to-end tests
+        if: steps.detect.outputs.present == 'true'
+        run: npm run test:e2e
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+
+      - name: Accessibility tests
+        if: steps.detect.outputs.present == 'true'
+        run: npm run test:a11y
