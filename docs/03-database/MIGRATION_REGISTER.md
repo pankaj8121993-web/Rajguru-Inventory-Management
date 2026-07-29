@@ -1,0 +1,87 @@
+# Migration Register
+
+Every schema change must appear here. A migration applied to any database but not committed
+as SQL **is not done** (AGENTS.md §4, development prompt §4).
+
+---
+
+## Status
+
+**No migrations exist.** The repository is at Phase 0 and contains no `supabase/` directory,
+no schema and no database.
+
+| # | File | Description | Phase | Applied dev | Applied staging | Applied prod | Reversible |
+|---|---|---|---|---|---|---|---|
+| — | — | No migrations yet | — | — | — | — | — |
+
+---
+
+## Rules
+
+1. **Committed SQL is the source of truth.** Migrations live in `supabase/migrations/` and
+   are applied through the Supabase CLI. A change made through the Supabase MCP or the
+   dashboard must be exported to SQL and committed in the same session, or reverted.
+
+2. **Sequential and immutable.** Filenames are `NNNN_short_description.sql` with a
+   monotonically increasing number. **An applied migration is never edited.** Fix forward
+   with a new migration.
+
+3. **RLS from creation.** A migration that creates a business table must enable RLS and
+   define its policies in the same migration. A table must never exist without RLS, even
+   briefly (NFR-03).
+
+4. **Reversibility.** Every migration states whether it is reversible and, where it is,
+   ships a `-- ROLLBACK:` section. Irreversible migrations — dropping a column, changing a
+   type with data loss — require explicit approval noted in this register.
+
+5. **Data migrations are separate.** Schema changes and data backfills go in separate
+   migrations, so a schema change can be reviewed independently of a data rewrite.
+
+6. **No destructive SQL without human review.** `DROP`, `TRUNCATE` and destructive `ALTER`
+   on any table holding business data require explicit human approval, recorded here.
+
+7. **Never weaken an invariant.** A migration must not add `NOT NULL` to
+   `stock_ledger.lot_id` (INV-04), grant write access on stock tables to a client role
+   (INV-25), or remove an immutability guard (INV-02). CI checks for these.
+
+8. **Test before registering.** Apply to development, run the invariant and RLS test suites,
+   and only then record it here as applied.
+
+---
+
+## Adding a migration
+
+```bash
+supabase migration new <short_description>      # create
+# write SQL, including RLS policies and a ROLLBACK section
+supabase db reset                                # verify from scratch locally
+npm run test:db                                  # constraints, RLS, invariants
+supabase db push --project-ref <dev-ref>         # apply to development
+```
+
+Then add a row above with the file name, description, phase, environments applied, and
+reversibility. Commit the SQL and the register entry together.
+
+---
+
+## Planned sequence
+
+Indicative, from `PHASED_BACKLOG.md`. Numbers assigned when written.
+
+| Phase | Migrations expected |
+|---|---|
+| 3 | Extensions and helpers · identity and access · audit and governance · attachments · masters (organisation, commodity, party, employee, vehicle, operational) · location nodes · approval rules · override framework |
+| 4 | Weighment batches, slips, attachments, allocations, corrections, duplicate reviews |
+| 5 | Receipt batches · inventory segments · provisional batches · unidentified pools · identification, classification and refinement events · pending tasks · splits and merges |
+| 6 | Lots and lot relations · stock transactions and lines · **stock ledger** · balance projections · the posting function |
+| 7 | Reservations · transfers · outward |
+| 8 | Quality templates, inspections, results · fumigation · chemicals · safety restrictions |
+| 9 | Verification sessions and estimates · discrepancies · adjustments · reconciliations · closures |
+| 10 | Insurance policies and coverage · valuations · claims · alerts · fire safety |
+| 11 | Layout versions, objects, geometry · dimensions · map layers |
+| 12 | Report definitions, saved views, export jobs · reporting indexes |
+| 13 | Opening stock migration · production indexes and tuning |
+
+The **Phase 6 ledger and posting-function migration is the highest-risk change in the
+project.** It carries INV-01, INV-02 and INV-03 and requires concurrency tests before it is
+registered as applied.
