@@ -1,48 +1,53 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
+import Rail from '@/components/Rail';
+import { navProgress } from '@/lib/nav';
+import { currentActor } from '@/lib/db';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Rajguru Foods — Inventory Management',
+  title: 'Rajguru Foods — Inventory & Warehouse Control',
   description: 'Stock, warehouse, insurance and spatial inventory management',
 };
 
-const NAV = [
-  { href: '/', label: 'Dashboard' },
-  { href: '/weighments', label: 'Weighments' },
-  { href: '/locations', label: 'Locations' },
-  { href: '/commodities', label: 'Commodities' },
-  { href: '/parties', label: 'Parties' },
-  { href: '/reason-codes', label: 'Reason codes' },
-  { href: '/administration', label: 'Administration' },
-];
+function initials(name: string): string {
+  return name.split(/\s+/).slice(0, 2).map((p) => p[0] ?? '').join('').toUpperCase();
+}
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const { ready, total } = navProgress();
+  const actor = await currentActor().catch(() => ({ id: '', label: 'Not signed in' }));
+
   return (
     <html lang="en">
-      <body className="min-h-screen antialiased">
-        <header className="border-b surface" style={{ borderColor: 'rgb(var(--border))' }}>
-          <div className="mx-auto max-w-7xl px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-2">
-            <Link href="/" className="font-semibold tracking-tight">
-              Rajguru Foods
-            </Link>
-            <nav className="flex flex-wrap gap-1" aria-label="Main">
-              {NAV.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="rounded-md px-3 py-2 text-sm hover:opacity-70"
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
-            <span className="ml-auto badge" title="Development build — not authenticated">
-              Phase 3 · dev
-            </span>
+      <body>
+        <div className="app">
+          <Rail readyCount={ready} totalCount={total} />
+          <div className="col">
+            <header className="topbar">
+              <div>
+                <div className="topbar-title">Aliyabad &amp; Murud</div>
+                <div className="topbar-sub">Latur, Maharashtra · 2 facilities</div>
+              </div>
+              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span className="chip chip-warn" title="Authentication is not built yet">
+                  No sign-in yet
+                </span>
+                <span className="who">
+                  <span className="who-av" aria-hidden="true">{initials(actor.label)}</span>
+                  <span>
+                    <span style={{ display: 'block', fontSize: 12.5, fontWeight: 600 }}>
+                      {actor.label}
+                    </span>
+                    <span style={{ display: 'block', fontSize: 11, color: 'rgb(var(--muted))' }}>
+                      Acting user
+                    </span>
+                  </span>
+                </span>
+              </div>
+            </header>
+            <main className="page">{children}</main>
           </div>
-        </header>
-        <main className="mx-auto max-w-7xl px-4 py-6">{children}</main>
+        </div>
       </body>
     </html>
   );

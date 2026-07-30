@@ -27,6 +27,14 @@ function createPool(): Pool {
     connectionTimeoutMillis: 5_000,
   });
 
+  // An idle client can be dropped by the server — a restart, a failover, an
+  // administrator terminating backends. Without a handler, node-postgres emits
+  // that as an unhandled 'error' event and the whole process dies. The pool
+  // discards the bad client and carries on; the next query gets a fresh one.
+  pool.on('error', (error) => {
+    console.error('Idle database client error (pool will recover)', error.message);
+  });
+
   // NFR-01: quantities must never become JavaScript floats. node-postgres parses
   // numeric as a string by default; keep it that way and convert deliberately
   // with Decimal at the point of use.
